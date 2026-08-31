@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Podcast Overlay</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  #stage {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Shared frame — same box used for cards AND bullets so switching feels consistent */
+  #frame {
+    background: rgba(10, 12, 20, 0.88);
+    border: 3px solid #f4c04a;
+    border-radius: 20px;
+    padding: 28px 36px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    max-width: 640px;
+    min-width: 320px;
+    opacity: 0;
+    transform: scale(0.96);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  #frame.visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Card mode */
+  #cardImg {
+    display: block;
+    max-width: 340px;
+    width: 100%;
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+  }
+  #cardLoading {
+    color: #f4c04a;
+    font-size: 20px;
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  /* Bullets mode */
+  #bulletList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    color: #ffffff;
+    font-size: 28px;
+    line-height: 1.6;
+  }
+  #bulletList li {
+    opacity: 0;
+    transform: translateX(-16px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    margin-bottom: 6px;
+  }
+  #bulletList li::before {
+    content: "\25B8  ";
+    color: #f4c04a;
+  }
+  #bulletList li.shown {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  /* Command bar — only really used via OBS "Interact" mode */
+  #cmdBar {
+    position: fixed;
+    left: 50%;
+    bottom: 40px;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.85);
+    border: 2px solid #f4c04a;
+    border-radius: 10px;
+    padding: 10px 16px;
+    display: none;
+    z-index: 10;
+  }
+  #cmdBar.active { display: block; }
+  #cmdInput {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-size: 18px;
+    width: 480px;
+  }
+  #cmdHint {
+    color: #999;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="frame">
+    <div id="cardWrap" style="display:none;">
+      <img id="cardImg" src="" alt="Magic card">
+    </div>
+    <div id="bulletWrap" style="display:none;">
+      <ul id="bulletList"></ul>
+    </div>
+  </div>
+</div>
+
+<div id="cmdBar">
+  <input id="cmdInput" type="text" placeholder="type a command and press Enter" autocomplete="off">
+  <div id="cmdHint">card &lt;name&gt; · bullets &lt;line1 | line2 | line3&gt; · clear · esc to close</div>
+</div>
+
+<script>
+  const frame = document.getElementById('frame');
+  const cardWrap = document.getElementById('cardWrap');
+  const bulletWrap = document.getElementById('bulletWrap');
+  const cardImg = document.getElementById('cardImg');
+  const bulletList = document.getElementById('bulletList');
+  const cmdBar = document.getElementById('cmdBar');
+  const cmdInput = document.getElementById('cmdInput');
+
+  // Persist last shown content so a browser-source refresh doesn't lose state
+  function saveState(state) {
+    localStorage.setItem('overlayState', JSON.stringify(state));
+  }
+  function loadState() {
+    try { return JSON.parse(localStorage.getItem('overlayState')); }
+    catch (e) { return null; }
+  }
+
+  function showFrame() {
+    frame.classList.add('visible');
+  }
+  function hideFrame() {
+    frame.classList.remove('visible');
+  }
+
+  async function showCard(name) {
+    cardWrap.style.display = 'block';
+    bulletWrap.style.display = 'none';
+    cardImg.src = '';
+    showFrame();
+    try {
+      const res = await fetch('https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(name));
+      if (!res.ok) throw new Error('not found');
+      const data = await res.json();
+      const img = data.image_uris ? data.image_uris.normal
+                : (data.card_faces && data.card_faces[0].image_uris ? data.card_faces[0].image_uris.normal : null);
+      if (!img) throw new Error('no image');
+      cardImg.src = img;
+      saveState({ mode: 'card', value: name });
+    } catch (e) {
+      cardWrap.innerHTML = '<div id="cardLoading">Card not found: ' + name + '</div>';
+    }
+  }
+
+  function showBullets(lines) {
+    cardWrap.style.display = 'none';
+    bulletWrap.style.display = 'block';
+    bulletList.innerHTML = '';
+    lines.forEach((line, i) => {
+      const li = document.createElement('li');
+      li.textContent = line;
+      bulletList.appendChild(li);
+      setTimeout(() => li.classList.add('shown'), 150 * i);
+    });
+    showFrame();
+    saveState({ mode: 'bullets', value: lines });
+  }
+
+  function clearDisplay() {
+    hideFrame();
+    saveState({ mode: 'clear' });
+  }
+
+  function runCommand(raw) {
+    const text = raw.trim();
+    if (!text) return;
+    const [cmd, ...rest] = text.split(' ');
+    const arg = rest.join(' ');
+
+    if (cmd === 'card' && arg) {
+      showCard(arg);
+    } else if (cmd === 'bullets' && arg) {
+      showBullets(arg.split('|').map(s => s.trim()).filter(Boolean));
+    } else if (cmd === 'clear') {
+      clearDisplay();
+    }
+  }
+
+  // Command bar: press "/" to open, Enter to run, Esc to close
+  document.addEventListener('keydown', (e) => {
+    if (cmdBar.classList.contains('active')) {
+      if (e.key === 'Escape') {
+        cmdBar.classList.remove('active');
+        cmdInput.blur();
+      } else if (e.key === 'Enter') {
+        runCommand(cmdInput.value);
+        cmdInput.value = '';
+        cmdBar.classList.remove('active');
+        cmdInput.blur();
+      }
+      return;
+    }
+    if (e.key === '/') {
+      e.preventDefault();
+      cmdBar.classList.add('active');
+      cmdInput.focus();
+    }
+  });
+
+  // Restore last state on load (useful after OBS reloads the source)
+  const saved = loadState();
+  if (saved) {
+    if (saved.mode === 'card') showCard(saved.value);
+    else if (saved.mode === 'bullets') showBullets(saved.value);
+  }
+</script>
+
+</body>
+</html>
