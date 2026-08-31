@@ -79,11 +79,42 @@
     transform: translateX(0);
   }
 
-  /* Command bar — only really used via OBS "Interact" mode */
+  /* Position indicator, e.g. "Card 3 / 12" */
+  #posLabel {
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+    margin-top: 14px;
+    letter-spacing: 0.5px;
+  }
+
+  /* On-screen control strip — click these while in OBS "Interact" mode */
+  #controls {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+  }
+  #controls button {
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    border: 2px solid #f4c04a;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  #controls button:hover { background: rgba(30,30,30,0.9); }
+  #controls button.activeMode { background: #f4c04a; color: #1a1300; }
+
+  /* Command bar — for ad-hoc lookups not in your preloaded list */
   #cmdBar {
     position: fixed;
     left: 50%;
-    bottom: 40px;
+    bottom: 70px;
     transform: translateX(-50%);
     background: rgba(0,0,0,0.85);
     border: 2px solid #f4c04a;
@@ -118,93 +149,192 @@
     <div id="bulletWrap" style="display:none;">
       <ul id="bulletList"></ul>
     </div>
+    <div id="posLabel"></div>
   </div>
+</div>
+
+<div id="controls">
+  <button id="btnPrev">&larr; Prev</button>
+  <button id="btnCards">Cards</button>
+  <button id="btnSlides">Slides</button>
+  <button id="btnNext">Next &rarr;</button>
+  <button id="btnClear">Hide</button>
 </div>
 
 <div id="cmdBar">
   <input id="cmdInput" type="text" placeholder="type a command and press Enter" autocomplete="off">
-  <div id="cmdHint">card &lt;name&gt; · bullets &lt;line1 | line2 | line3&gt; · clear · esc to close</div>
+  <div id="cmdHint">card &lt;name&gt; · bullets &lt;line1 | line2&gt; · clear · esc to close</div>
 </div>
 
 <script>
+  /* =========================================================
+     EDIT ME — your preloaded content.
+     CARD_LIST: exact or close card names (Scryfall fuzzy-matches).
+     SLIDES: each entry is one "slide" — an array of bullet lines.
+     ========================================================= */
+  const CARD_LIST = [
+    "Black Lotus",
+    "Lightning Bolt",
+    "Sol Ring",
+    "Tarmogoyf"
+  ];
+
+  const SLIDES = [
+    ["Welcome to the podcast", "Two friends, one playmat"],
+    ["Host 1", "Playing MTG since 2015", "Prefers aggro decks"],
+    ["Host 2", "Playing MTG since 2018", "Prefers control decks"],
+    ["Today's topic", "Best budget commanders under $50"]
+  ];
+  /* ========================================================= */
+
   const frame = document.getElementById('frame');
   const cardWrap = document.getElementById('cardWrap');
   const bulletWrap = document.getElementById('bulletWrap');
   const cardImg = document.getElementById('cardImg');
   const bulletList = document.getElementById('bulletList');
+  const posLabel = document.getElementById('posLabel');
   const cmdBar = document.getElementById('cmdBar');
   const cmdInput = document.getElementById('cmdInput');
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  const btnCards = document.getElementById('btnCards');
+  const btnSlides = document.getElementById('btnSlides');
+  const btnClear = document.getElementById('btnClear');
 
-  // Persist last shown content so a browser-source refresh doesn't lose state
-  function saveState(state) {
-    localStorage.setItem('overlayState', JSON.stringify(state));
+  let mode = 'cards';      // 'cards' or 'slides'
+  let cardIndex = 0;
+  let slideIndex = 0;
+  const cardImageCache = {}; // name -> image URL, filled on page load
+
+  function saveState() {
+    localStorage.setItem('overlayState', JSON.stringify({ mode, cardIndex, slideIndex }));
   }
   function loadState() {
     try { return JSON.parse(localStorage.getItem('overlayState')); }
     catch (e) { return null; }
   }
 
-  function showFrame() {
-    frame.classList.add('visible');
-  }
-  function hideFrame() {
-    frame.classList.remove('visible');
+  function showFrame() { frame.classList.add('visible'); }
+  function hideFrame() { frame.classList.remove('visible'); }
+
+  function setActiveModeButton() {
+    btnCards.classList.toggle('activeMode', mode === 'cards');
+    btnSlides.classList.toggle('activeMode', mode === 'slides');
   }
 
-  async function showCard(name) {
-    cardWrap.style.display = 'block';
-    bulletWrap.style.display = 'none';
-    cardImg.src = '';
-    showFrame();
-    try {
-      const res = await fetch('https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(name));
-      if (!res.ok) throw new Error('not found');
-      const data = await res.json();
-      const img = data.image_uris ? data.image_uris.normal
-                : (data.card_faces && data.card_faces[0].image_uris ? data.card_faces[0].image_uris.normal : null);
-      if (!img) throw new Error('no image');
-      cardImg.src = img;
-      saveState({ mode: 'card', value: name });
-    } catch (e) {
-      cardWrap.innerHTML = '<div id="cardLoading">Card not found: ' + name + '</div>';
+  async function fetchCardImage(name) {
+    if (cardImageCache[name]) return cardImageCache[name];
+    const res = await fetch('https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(name));
+    if (!res.ok) throw new Error('not found');
+    const data = await res.json();
+    const img = data.image_uris ? data.image_uris.normal
+              : (data.card_faces && data.card_faces[0].image_uris ? data.card_faces[0].image_uris.normal : null);
+    if (!img) throw new Error('no image');
+    cardImageCache[name] = img;
+    return img;
+  }
+
+  // Pre-fetch every preloaded card on page load so navigation is instant later
+  async function preloadCards() {
+    for (const name of CARD_LIST) {
+      try { await fetchCardImage(name); }
+      catch (e) { console.warn('Could not preload card:', name); }
     }
   }
+  preloadCards();
 
-  function showBullets(lines) {
+  async function showCardAt(index) {
+    if (CARD_LIST.length === 0) return;
+    cardIndex = ((index % CARD_LIST.length) + CARD_LIST.length) % CARD_LIST.length;
+    mode = 'cards';
+    setActiveModeButton();
+    cardWrap.style.display = 'block';
+    bulletWrap.style.display = 'none';
+    const name = CARD_LIST[cardIndex];
+    posLabel.textContent = 'Card ' + (cardIndex + 1) + ' / ' + CARD_LIST.length;
+    showFrame();
+    try {
+      const img = await fetchCardImage(name);
+      cardImg.src = img;
+    } catch (e) {
+      cardImg.src = '';
+      cardWrap.innerHTML = '<div id="cardLoading">Card not found: ' + name + '</div>';
+    }
+    saveState();
+  }
+
+  function showSlideAt(index) {
+    if (SLIDES.length === 0) return;
+    slideIndex = ((index % SLIDES.length) + SLIDES.length) % SLIDES.length;
+    mode = 'slides';
+    setActiveModeButton();
     cardWrap.style.display = 'none';
     bulletWrap.style.display = 'block';
     bulletList.innerHTML = '';
-    lines.forEach((line, i) => {
+    SLIDES[slideIndex].forEach((line, i) => {
       const li = document.createElement('li');
       li.textContent = line;
       bulletList.appendChild(li);
-      setTimeout(() => li.classList.add('shown'), 150 * i);
+      setTimeout(() => li.classList.add('shown'), 120 * i);
     });
+    posLabel.textContent = 'Slide ' + (slideIndex + 1) + ' / ' + SLIDES.length;
     showFrame();
-    saveState({ mode: 'bullets', value: lines });
+    saveState();
   }
 
+  function next() {
+    if (mode === 'cards') showCardAt(cardIndex + 1);
+    else showSlideAt(slideIndex + 1);
+  }
+  function prev() {
+    if (mode === 'cards') showCardAt(cardIndex - 1);
+    else showSlideAt(slideIndex - 1);
+  }
   function clearDisplay() {
     hideFrame();
-    saveState({ mode: 'clear' });
   }
 
+  btnNext.addEventListener('click', next);
+  btnPrev.addEventListener('click', prev);
+  btnCards.addEventListener('click', () => showCardAt(cardIndex));
+  btnSlides.addEventListener('click', () => showSlideAt(slideIndex));
+  btnClear.addEventListener('click', clearDisplay);
+
+  // Ad-hoc command bar, for anything not in your preloaded lists
   function runCommand(raw) {
     const text = raw.trim();
     if (!text) return;
     const [cmd, ...rest] = text.split(' ');
     const arg = rest.join(' ');
-
     if (cmd === 'card' && arg) {
-      showCard(arg);
+      mode = 'cards';
+      setActiveModeButton();
+      cardWrap.style.display = 'block';
+      bulletWrap.style.display = 'none';
+      posLabel.textContent = '';
+      showFrame();
+      fetchCardImage(arg).then(img => cardImg.src = img)
+        .catch(() => cardWrap.innerHTML = '<div id="cardLoading">Card not found: ' + arg + '</div>');
     } else if (cmd === 'bullets' && arg) {
-      showBullets(arg.split('|').map(s => s.trim()).filter(Boolean));
+      mode = 'slides';
+      setActiveModeButton();
+      cardWrap.style.display = 'none';
+      bulletWrap.style.display = 'block';
+      bulletList.innerHTML = '';
+      posLabel.textContent = '';
+      arg.split('|').map(s => s.trim()).filter(Boolean).forEach((line, i) => {
+        const li = document.createElement('li');
+        li.textContent = line;
+        bulletList.appendChild(li);
+        setTimeout(() => li.classList.add('shown'), 120 * i);
+      });
+      showFrame();
     } else if (cmd === 'clear') {
       clearDisplay();
     }
   }
 
-  // Command bar: press "/" to open, Enter to run, Esc to close
+  // Keyboard: arrows/n/p navigate directly; "/" opens command bar for ad-hoc lookups
   document.addEventListener('keydown', (e) => {
     if (cmdBar.classList.contains('active')) {
       if (e.key === 'Escape') {
@@ -222,14 +352,28 @@
       e.preventDefault();
       cmdBar.classList.add('active');
       cmdInput.focus();
+    } else if (e.key === 'ArrowRight' || e.key === 'n') {
+      next();
+    } else if (e.key === 'ArrowLeft' || e.key === 'p') {
+      prev();
+    } else if (e.key === '1') {
+      showCardAt(cardIndex);
+    } else if (e.key === '2') {
+      showSlideAt(slideIndex);
+    } else if (e.key === 'Escape') {
+      clearDisplay();
     }
   });
 
-  // Restore last state on load (useful after OBS reloads the source)
+  // Restore last position on load (useful if OBS reloads the source mid-show)
   const saved = loadState();
   if (saved) {
-    if (saved.mode === 'card') showCard(saved.value);
-    else if (saved.mode === 'bullets') showBullets(saved.value);
+    cardIndex = saved.cardIndex || 0;
+    slideIndex = saved.slideIndex || 0;
+    if (saved.mode === 'slides') showSlideAt(slideIndex);
+    else showCardAt(cardIndex);
+  } else {
+    setActiveModeButton();
   }
 </script>
 
