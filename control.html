@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Overlay Control Panel</title>
+<style>
+  body {
+    margin: 0;
+    background: #14161c;
+    color: #fff;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+  h1 { font-size: 20px; color: #f4c04a; margin-bottom: 4px; }
+  #status { font-size: 13px; color: #999; margin-bottom: 24px; }
+  #preview {
+    background: #1e2028;
+    border: 2px solid #f4c04a;
+    border-radius: 12px;
+    padding: 16px 24px;
+    font-size: 18px;
+    margin-bottom: 24px;
+    min-width: 280px;
+    text-align: center;
+  }
+  #preview .label { color: #999; font-size: 12px; display: block; margin-bottom: 4px; }
+  .row { display: flex; gap: 10px; margin-bottom: 14px; }
+  button {
+    background: #2a2d38;
+    color: #fff;
+    border: 2px solid #f4c04a;
+    border-radius: 10px;
+    padding: 14px 22px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  button:hover { background: #3a3d4a; }
+  button.mode.active { background: #f4c04a; color: #1a1300; }
+  button.big { font-size: 20px; padding: 18px 30px; }
+  button.danger { border-color: #ff5a5a; }
+</style>
+</head>
+<body>
+
+<h1>Podcast Overlay Control</h1>
+<div id="status">connecting...</div>
+
+<div id="preview">
+  <span class="label">Now showing</span>
+  <span id="previewText">—</span>
+</div>
+
+<div class="row">
+  <button id="btnCards" class="mode">Cards</button>
+  <button id="btnSlides" class="mode">Slides</button>
+</div>
+
+<div class="row">
+  <button id="btnPrev" class="big">&larr; Prev</button>
+  <button id="btnNext" class="big">Next &rarr;</button>
+</div>
+
+<div class="row">
+  <button id="btnHide" class="danger">Hide overlay</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script>
+  /* =========================================================
+     PASTE YOUR FIREBASE CONFIG HERE (same one used in overlay.html)
+     ========================================================= */
+  const firebaseConfig = {
+  apiKey: "AIzaSyA0BNDN63NtjldE7g8g131oc24u1DKGEgg",
+
+  authDomain: "card-mastery.firebaseapp.com",
+
+  projectId: "card-mastery",
+
+  storageBucket: "card-mastery.firebasestorage.app",
+
+  messagingSenderId: "19360834477",
+
+  appId: "1:19360834477:web:8a1df5c084ce73eab73724",
+
+  measurementId: "G-GPNPENMG39"
+  };
+  /* ========================================================= */
+
+  /* =========================================================
+     Keep this list IDENTICAL to the one in overlay.html.
+     ========================================================= */
+  const CARD_LIST = [
+    "Black Lotus",
+    "Lightning Bolt",
+    "Sol Ring",
+    "Tarmogoyf"
+  ];
+
+  const SLIDES = [
+    ["Welcome to the podcast", "Two friends, one playmat"],
+    ["Host 1", "Playing MTG since 2015", "Prefers aggro decks"],
+    ["Host 2", "Playing MTG since 2018", "Prefers control decks"],
+    ["Today's topic", "Best budget commanders under $50"]
+  ];
+  /* ========================================================= */
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const stateRef = db.ref('overlay/state');
+
+  const statusEl = document.getElementById('status');
+  const previewText = document.getElementById('previewText');
+  const btnCards = document.getElementById('btnCards');
+  const btnSlides = document.getElementById('btnSlides');
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  const btnHide = document.getElementById('btnHide');
+
+  let mode = 'cards';
+  let cardIndex = 0;
+  let slideIndex = 0;
+
+  db.ref('.info/connected').on('value', (snap) => {
+    statusEl.textContent = snap.val() ? 'connected' : 'disconnected — check your config';
+  });
+
+  function updatePreview() {
+    btnCards.classList.toggle('active', mode === 'cards');
+    btnSlides.classList.toggle('active', mode === 'slides');
+    if (mode === 'cards') {
+      previewText.textContent = CARD_LIST[cardIndex] + '  (' + (cardIndex + 1) + '/' + CARD_LIST.length + ')';
+    } else {
+      previewText.textContent = SLIDES[slideIndex][0] + '  (' + (slideIndex + 1) + '/' + SLIDES.length + ')';
+    }
+  }
+
+  function push() {
+    stateRef.set({ mode, cardIndex, slideIndex, ts: Date.now() });
+    updatePreview();
+  }
+
+  btnCards.addEventListener('click', () => { mode = 'cards'; push(); });
+  btnSlides.addEventListener('click', () => { mode = 'slides'; push(); });
+
+  btnNext.addEventListener('click', () => {
+    if (mode === 'cards') cardIndex = (cardIndex + 1) % CARD_LIST.length;
+    else slideIndex = (slideIndex + 1) % SLIDES.length;
+    push();
+  });
+
+  btnPrev.addEventListener('click', () => {
+    if (mode === 'cards') cardIndex = (cardIndex - 1 + CARD_LIST.length) % CARD_LIST.length;
+    else slideIndex = (slideIndex - 1 + SLIDES.length) % SLIDES.length;
+    push();
+  });
+
+  btnHide.addEventListener('click', () => {
+    stateRef.set({ mode: 'clear', ts: Date.now() });
+  });
+
+  // Keyboard shortcuts too, for when you're at a real keyboard
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') btnNext.click();
+    else if (e.key === 'ArrowLeft') btnPrev.click();
+    else if (e.key === '1') btnCards.click();
+    else if (e.key === '2') btnSlides.click();
+    else if (e.key === 'Escape') btnHide.click();
+  });
+
+  updatePreview();
+</script>
+
+</body>
+</html>
