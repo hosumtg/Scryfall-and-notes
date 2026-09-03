@@ -50,7 +50,6 @@
   </div>
 </div>
 
-<!-- Firebase SDK (compat version — simplest to work with) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
@@ -59,38 +58,14 @@
      PASTE YOUR FIREBASE CONFIG HERE (same one used in control.html)
      ========================================================= */
   const firebaseConfig = {
-  apiKey: "AIzaSyA0BNDN63NtjldE7g8g131oc24u1DKGEgg",
-
-  authDomain: "card-mastery.firebaseapp.com",
-
-  projectId: "card-mastery",
-
-  storageBucket: "card-mastery.firebasestorage.app",
-
-  messagingSenderId: "19360834477",
-
-  appId: "1:19360834477:web:8a1df5c084ce73eab73724",
-
-  measurementId: "G-GPNPENMG39"
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
   };
-  /* ========================================================= */
-
-  /* =========================================================
-     Keep this list IDENTICAL to the one in control.html.
-     ========================================================= */
-  const CARD_LIST = [
-    "Black Lotus",
-    "Lightning Bolt",
-    "Sol Ring",
-    "Tarmogoyf"
-  ];
-
-  const SLIDES = [
-    ["Welcome to the podcast", "Two friends, one playmat"],
-    ["Host 1", "Playing MTG since 2015", "Prefers aggro decks"],
-    ["Host 2", "Playing MTG since 2018", "Prefers control decks"],
-    ["Today's topic", "Best budget commanders under $50"]
-  ];
   /* ========================================================= */
 
   firebase.initializeApp(firebaseConfig);
@@ -102,6 +77,12 @@
   const cardImg = document.getElementById('cardImg');
   const bulletList = document.getElementById('bulletList');
   const posLabel = document.getElementById('posLabel');
+
+  // Cards and slides now live in Firebase, not hardcoded here.
+  // You manage them entirely from control.html.
+  let CARD_LIST = [];
+  let SLIDES = [];
+  let currentState = null;
 
   const cardImageCache = {};
 
@@ -117,27 +98,31 @@
     return img;
   }
 
-  // Pre-fetch every card on load so switching later is instant
-  (async () => {
-    for (const name of CARD_LIST) {
-      try { await fetchCardImage(name); } catch (e) { console.warn('Could not preload:', name); }
-    }
-  })();
+  function preloadNewCards(list) {
+    list.forEach(name => {
+      if (!cardImageCache[name]) {
+        fetchCardImage(name).catch(() => console.warn('Could not preload:', name));
+      }
+    });
+  }
 
   function showFrame() { frame.classList.add('visible'); }
   function hideFrame() { frame.classList.remove('visible'); }
 
   async function renderCard(index) {
     const name = CARD_LIST[index];
-    if (!name) return;
+    if (!name) { hideFrame(); return; }
     cardWrap.style.display = 'block';
     bulletWrap.style.display = 'none';
     posLabel.textContent = 'Card ' + (index + 1) + ' / ' + CARD_LIST.length;
     showFrame();
     try {
-      cardImg.src = await fetchCardImage(name);
+      const img = await fetchCardImage(name);
       cardWrap.innerHTML = '';
-      cardWrap.appendChild(cardImg);
+      const im = document.createElement('img');
+      im.id = 'cardImg';
+      im.src = img;
+      cardWrap.appendChild(im);
     } catch (e) {
       cardWrap.innerHTML = '<div id="cardLoading">Card not found: ' + name + '</div>';
     }
@@ -145,7 +130,7 @@
 
   function renderSlide(index) {
     const lines = SLIDES[index];
-    if (!lines) return;
+    if (!lines) { hideFrame(); return; }
     cardWrap.style.display = 'none';
     bulletWrap.style.display = 'block';
     bulletList.innerHTML = '';
@@ -159,13 +144,30 @@
     showFrame();
   }
 
-  // Listen for live updates from the control panel
-  db.ref('overlay/state').on('value', (snapshot) => {
-    const state = snapshot.val();
-    if (!state) return;
-    if (state.mode === 'cards') renderCard(state.cardIndex || 0);
-    else if (state.mode === 'slides') renderSlide(state.slideIndex || 0);
-    else if (state.mode === 'clear') hideFrame();
+  function renderCurrent() {
+    if (!currentState) return;
+    if (currentState.mode === 'cards') renderCard(currentState.cardIndex || 0);
+    else if (currentState.mode === 'slides') renderSlide(currentState.slideIndex || 0);
+    else if (currentState.mode === 'clear') hideFrame();
+  }
+
+  // Live-sync the card list
+  db.ref('overlay/cards').on('value', (snap) => {
+    CARD_LIST = snap.val() || [];
+    preloadNewCards(CARD_LIST);
+    renderCurrent();
+  });
+
+  // Live-sync the slide list
+  db.ref('overlay/slides').on('value', (snap) => {
+    SLIDES = snap.val() || [];
+    renderCurrent();
+  });
+
+  // Live-sync what should currently be displayed
+  db.ref('overlay/state').on('value', (snap) => {
+    currentState = snap.val();
+    renderCurrent();
   });
 </script>
 
