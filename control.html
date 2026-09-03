@@ -12,9 +12,10 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 40px 20px;
+    padding: 40px 20px 80px;
   }
   h1 { font-size: 20px; color: #f4c04a; margin-bottom: 4px; }
+  h2 { font-size: 15px; color: #f4c04a; margin: 0 0 10px; }
   #status { font-size: 13px; color: #999; margin-bottom: 24px; }
   #preview {
     background: #1e2028;
@@ -27,20 +28,55 @@
     text-align: center;
   }
   #preview .label { color: #999; font-size: 12px; display: block; margin-bottom: 4px; }
-  .row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; justify-content: center; }
   button {
     background: #2a2d38;
     color: #fff;
     border: 2px solid #f4c04a;
     border-radius: 10px;
-    padding: 14px 22px;
-    font-size: 16px;
+    padding: 12px 20px;
+    font-size: 15px;
     cursor: pointer;
   }
   button:hover { background: #3a3d4a; }
   button.mode.active { background: #f4c04a; color: #1a1300; }
   button.big { font-size: 20px; padding: 18px 30px; }
   button.danger { border-color: #ff5a5a; }
+  button.small { padding: 6px 10px; font-size: 13px; }
+
+  .panel {
+    background: #1a1c24;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 18px 20px;
+    width: 420px;
+    max-width: 90vw;
+    margin-top: 30px;
+  }
+  .panel input, .panel textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: #0f1015;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 14px;
+    margin-bottom: 8px;
+    font-family: inherit;
+  }
+  .listItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #22242e;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+  .listItem span { flex: 1; margin-right: 8px; }
+  .listItem.current { border: 1px solid #f4c04a; }
 </style>
 </head>
 <body>
@@ -67,6 +103,22 @@
   <button id="btnHide" class="danger">Hide overlay</button>
 </div>
 
+<!-- ===== Card list editor ===== -->
+<div class="panel">
+  <h2>Cards</h2>
+  <input id="newCardInput" type="text" placeholder="Card name, e.g. Sol Ring">
+  <button id="addCardBtn" class="small">Add card</button>
+  <div id="cardListUI" style="margin-top:10px;"></div>
+</div>
+
+<!-- ===== Slides editor ===== -->
+<div class="panel">
+  <h2>Slides (bullet points)</h2>
+  <textarea id="newSlideInput" rows="4" placeholder="One bullet per line, e.g.&#10;Host 1&#10;Playing since 2015&#10;Prefers aggro decks"></textarea>
+  <button id="addSlideBtn" class="small">Add slide</button>
+  <div id="slideListUI" style="margin-top:10px;"></div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
@@ -75,43 +127,21 @@
      PASTE YOUR FIREBASE CONFIG HERE (same one used in overlay.html)
      ========================================================= */
   const firebaseConfig = {
-  apiKey: "AIzaSyA0BNDN63NtjldE7g8g131oc24u1DKGEgg",
-
-  authDomain: "card-mastery.firebaseapp.com",
-
-  projectId: "card-mastery",
-
-  storageBucket: "card-mastery.firebasestorage.app",
-
-  messagingSenderId: "19360834477",
-
-  appId: "1:19360834477:web:8a1df5c084ce73eab73724",
-
-  measurementId: "G-GPNPENMG39"
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
   };
-  /* ========================================================= */
-
-  /* =========================================================
-     Keep this list IDENTICAL to the one in overlay.html.
-     ========================================================= */
-  const CARD_LIST = [
-    "Black Lotus",
-    "Lightning Bolt",
-    "Sol Ring",
-    "Tarmogoyf"
-  ];
-
-  const SLIDES = [
-    ["Welcome to the podcast", "Two friends, one playmat"],
-    ["Host 1", "Playing MTG since 2015", "Prefers aggro decks"],
-    ["Host 2", "Playing MTG since 2018", "Prefers control decks"],
-    ["Today's topic", "Best budget commanders under $50"]
-  ];
   /* ========================================================= */
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
   const stateRef = db.ref('overlay/state');
+  const cardsRef = db.ref('overlay/cards');
+  const slidesRef = db.ref('overlay/slides');
 
   const statusEl = document.getElementById('status');
   const previewText = document.getElementById('previewText');
@@ -120,10 +150,18 @@
   const btnPrev = document.getElementById('btnPrev');
   const btnNext = document.getElementById('btnNext');
   const btnHide = document.getElementById('btnHide');
+  const cardListUI = document.getElementById('cardListUI');
+  const slideListUI = document.getElementById('slideListUI');
+  const newCardInput = document.getElementById('newCardInput');
+  const newSlideInput = document.getElementById('newSlideInput');
+  const addCardBtn = document.getElementById('addCardBtn');
+  const addSlideBtn = document.getElementById('addSlideBtn');
 
   let mode = 'cards';
   let cardIndex = 0;
   let slideIndex = 0;
+  let CARD_LIST = [];
+  let SLIDES = [];
 
   db.ref('.info/connected').on('value', (snap) => {
     statusEl.textContent = snap.val() ? 'connected' : 'disconnected — check your config';
@@ -132,10 +170,12 @@
   function updatePreview() {
     btnCards.classList.toggle('active', mode === 'cards');
     btnSlides.classList.toggle('active', mode === 'slides');
-    if (mode === 'cards') {
+    if (mode === 'cards' && CARD_LIST[cardIndex] !== undefined) {
       previewText.textContent = CARD_LIST[cardIndex] + '  (' + (cardIndex + 1) + '/' + CARD_LIST.length + ')';
-    } else {
+    } else if (mode === 'slides' && SLIDES[slideIndex] !== undefined) {
       previewText.textContent = SLIDES[slideIndex][0] + '  (' + (slideIndex + 1) + '/' + SLIDES.length + ')';
+    } else {
+      previewText.textContent = '—';
     }
   }
 
@@ -148,14 +188,14 @@
   btnSlides.addEventListener('click', () => { mode = 'slides'; push(); });
 
   btnNext.addEventListener('click', () => {
-    if (mode === 'cards') cardIndex = (cardIndex + 1) % CARD_LIST.length;
-    else slideIndex = (slideIndex + 1) % SLIDES.length;
+    if (mode === 'cards' && CARD_LIST.length) cardIndex = (cardIndex + 1) % CARD_LIST.length;
+    else if (mode === 'slides' && SLIDES.length) slideIndex = (slideIndex + 1) % SLIDES.length;
     push();
   });
 
   btnPrev.addEventListener('click', () => {
-    if (mode === 'cards') cardIndex = (cardIndex - 1 + CARD_LIST.length) % CARD_LIST.length;
-    else slideIndex = (slideIndex - 1 + SLIDES.length) % SLIDES.length;
+    if (mode === 'cards' && CARD_LIST.length) cardIndex = (cardIndex - 1 + CARD_LIST.length) % CARD_LIST.length;
+    else if (mode === 'slides' && SLIDES.length) slideIndex = (slideIndex - 1 + SLIDES.length) % SLIDES.length;
     push();
   });
 
@@ -163,8 +203,91 @@
     stateRef.set({ mode: 'clear', ts: Date.now() });
   });
 
-  // Keyboard shortcuts too, for when you're at a real keyboard
+  // ===== Card list editor =====
+  function renderCardListUI() {
+    cardListUI.innerHTML = '';
+    CARD_LIST.forEach((name, i) => {
+      const row = document.createElement('div');
+      row.className = 'listItem' + (mode === 'cards' && i === cardIndex ? ' current' : '');
+      row.innerHTML = '<span>' + name + '</span>';
+      const jumpBtn = document.createElement('button');
+      jumpBtn.className = 'small';
+      jumpBtn.textContent = 'Show';
+      jumpBtn.addEventListener('click', () => { mode = 'cards'; cardIndex = i; push(); });
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        const updated = CARD_LIST.slice();
+        updated.splice(i, 1);
+        cardsRef.set(updated);
+      });
+      row.appendChild(jumpBtn);
+      row.appendChild(delBtn);
+      cardListUI.appendChild(row);
+    });
+  }
+
+  addCardBtn.addEventListener('click', () => {
+    const name = newCardInput.value.trim();
+    if (!name) return;
+    cardsRef.set(CARD_LIST.concat([name]));
+    newCardInput.value = '';
+  });
+  newCardInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addCardBtn.click();
+  });
+
+  // ===== Slide list editor =====
+  function renderSlideListUI() {
+    slideListUI.innerHTML = '';
+    SLIDES.forEach((lines, i) => {
+      const row = document.createElement('div');
+      row.className = 'listItem' + (mode === 'slides' && i === slideIndex ? ' current' : '');
+      row.innerHTML = '<span>' + lines.join(' · ') + '</span>';
+      const jumpBtn = document.createElement('button');
+      jumpBtn.className = 'small';
+      jumpBtn.textContent = 'Show';
+      jumpBtn.addEventListener('click', () => { mode = 'slides'; slideIndex = i; push(); });
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        const updated = SLIDES.slice();
+        updated.splice(i, 1);
+        slidesRef.set(updated);
+      });
+      row.appendChild(jumpBtn);
+      row.appendChild(delBtn);
+      slideListUI.appendChild(row);
+    });
+  }
+
+  addSlideBtn.addEventListener('click', () => {
+    const lines = newSlideInput.value.split('\n').map(s => s.trim()).filter(Boolean);
+    if (!lines.length) return;
+    slidesRef.set(SLIDES.concat([lines]));
+    newSlideInput.value = '';
+  });
+
+  // Live-sync lists from Firebase so edits reflect instantly, including from other tabs
+  cardsRef.on('value', (snap) => {
+    CARD_LIST = snap.val() || [];
+    if (cardIndex >= CARD_LIST.length) cardIndex = 0;
+    renderCardListUI();
+    updatePreview();
+  });
+
+  slidesRef.on('value', (snap) => {
+    SLIDES = snap.val() || [];
+    if (slideIndex >= SLIDES.length) slideIndex = 0;
+    renderSlideListUI();
+    updatePreview();
+  });
+
+  // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
+    if (document.activeElement === newCardInput || document.activeElement === newSlideInput) return;
     if (e.key === 'ArrowRight') btnNext.click();
     else if (e.key === 'ArrowLeft') btnPrev.click();
     else if (e.key === '1') btnCards.click();
