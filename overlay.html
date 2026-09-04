@@ -12,10 +12,8 @@
   }
   #stage { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
   #frame {
-    background: rgba(10, 12, 20, 0.88);
-    border-radius: 20px;
-    padding: 28px 36px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    background: transparent;
+    padding: 12px;
     max-width: 640px;
     min-width: 320px;
     opacity: 0;
@@ -24,7 +22,7 @@
   }
   #frame.visible { opacity: 1; transform: scale(1); }
   #cardImg {
-    display: block; max-width: 340px; width: 100%;
+    display: block; max-width: 420px; width: 100%;
     border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6);
   }
   #cardLoading { color: #f4c04a; font-size: 20px; text-align: center; padding: 20px 0; }
@@ -32,14 +30,32 @@
     display: block; max-width: 480px; width: 100%;
     border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6);
   }
-  #slideHeader { color: #f4c04a; font-size: 32px; font-weight: 700; margin-bottom: 12px; }
-  #bulletList { list-style: none; margin: 0; padding: 0; color: #fff; font-size: 28px; line-height: 1.6; }
+  :root {
+    --slide-text-color: #ffffff;
+    --slide-accent-color: #f4c04a;
+    --slide-font-family: 'Segoe UI', Arial, sans-serif;
+    --slide-font-weight: 400;
+  }
+  #slideHeader {
+    color: var(--slide-accent-color);
+    font-family: var(--slide-font-family);
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  #bulletList {
+    list-style: none; margin: 0; padding: 0;
+    color: var(--slide-text-color);
+    font-family: var(--slide-font-family);
+    font-weight: var(--slide-font-weight);
+    font-size: 28px; line-height: 1.6;
+  }
   #bulletList li {
     opacity: 0; transform: translateX(-16px);
     transition: opacity 0.4s ease, transform 0.4s ease;
     margin-bottom: 6px;
   }
-  #bulletList li::before { content: "\2022  "; color: #f4c04a; }
+  #bulletList li::before { content: "\2022  "; color: var(--slide-accent-color); }
   #bulletList li.shown { opacity: 1; transform: translateX(0); }
 </style>
 </head>
@@ -106,8 +122,9 @@
     const res = await fetch('https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(name));
     if (!res.ok) throw new Error('not found');
     const data = await res.json();
-    const img = data.image_uris ? data.image_uris.normal
-              : (data.card_faces && data.card_faces[0].image_uris ? data.card_faces[0].image_uris.normal : null);
+    const uris = data.image_uris || (data.card_faces && data.card_faces[0].image_uris);
+    // Prefer the highest quality available: png > large > normal
+    const img = uris ? (uris.png || uris.large || uris.normal) : null;
     if (!img) throw new Error('no image');
     cardImageCache[name] = img;
     return img;
@@ -207,6 +224,16 @@
   db.ref('overlay/images').on('value', (snap) => {
     IMAGES = snap.val() || [];
     renderCurrent();
+  });
+
+  // Live-sync slide text styling (color, font, weight)
+  db.ref('overlay/style').on('value', (snap) => {
+    const style = snap.val() || {};
+    const root = document.documentElement.style;
+    root.setProperty('--slide-text-color', style.textColor || '#ffffff');
+    root.setProperty('--slide-accent-color', style.accentColor || '#f4c04a');
+    root.setProperty('--slide-font-family', style.fontFamily || "'Segoe UI', Arial, sans-serif");
+    root.setProperty('--slide-font-weight', style.bold ? '700' : '400');
   });
 
   // Live-sync what should currently be displayed
