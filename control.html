@@ -77,6 +77,9 @@
   }
   .listItem span { flex: 1; margin-right: 8px; }
   .listItem.current { border: 1px solid #f4c04a; }
+  .listItem[draggable="true"] { cursor: grab; }
+  .listItem.dragging { opacity: 0.4; }
+  .listItem .dragHandle { color: #666; margin-right: 8px; cursor: grab; user-select: none; }
 </style>
 </head>
 <body>
@@ -131,6 +134,28 @@
   <div id="slideListUI" style="margin-top:10px;"></div>
 </div>
 
+<!-- ===== Slide text style ===== -->
+<div class="panel">
+  <h2>Slide Text Style</h2>
+  <label style="font-size:13px; color:#999; display:block; margin-bottom:4px;">Text color</label>
+  <input id="styleTextColor" type="color" value="#ffffff" style="width:100%; height:36px; margin-bottom:10px;">
+  <label style="font-size:13px; color:#999; display:block; margin-bottom:4px;">Accent color (header + bullet dots)</label>
+  <input id="styleAccentColor" type="color" value="#f4c04a" style="width:100%; height:36px; margin-bottom:10px;">
+  <label style="font-size:13px; color:#999; display:block; margin-bottom:4px;">Font</label>
+  <select id="styleFontFamily" style="width:100%; padding:8px; margin-bottom:10px; background:#0f1015; color:#fff; border:1px solid #444; border-radius:8px;">
+    <option value="'Segoe UI', Arial, sans-serif">Segoe UI (default)</option>
+    <option value="Georgia, serif">Georgia (serif)</option>
+    <option value="'Courier New', monospace">Courier New (mono)</option>
+    <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+    <option value="Impact, sans-serif">Impact</option>
+    <option value="Verdana, sans-serif">Verdana</option>
+  </select>
+  <label style="font-size:13px; color:#ccc; display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+    <input id="styleBold" type="checkbox"> Bold bullet text
+  </label>
+  <button id="applyStyleBtn" class="small">Apply style</button>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
@@ -182,6 +207,12 @@
   const addSlideBtn = document.getElementById('addSlideBtn');
   const addImageBtn = document.getElementById('addImageBtn');
   const imageUploadStatus = document.getElementById('imageUploadStatus');
+  const styleTextColor = document.getElementById('styleTextColor');
+  const styleAccentColor = document.getElementById('styleAccentColor');
+  const styleFontFamily = document.getElementById('styleFontFamily');
+  const styleBold = document.getElementById('styleBold');
+  const applyStyleBtn = document.getElementById('applyStyleBtn');
+  const styleRef = db.ref('overlay/style');
 
   // Works whether a slide entry is the old plain-array format
   // or the new { header, bullets } format.
@@ -245,12 +276,23 @@
   });
 
   // ===== Card list editor =====
+  let dragFromIndex = null;
+
   function renderCardListUI() {
     cardListUI.innerHTML = '';
     CARD_LIST.forEach((name, i) => {
       const row = document.createElement('div');
       row.className = 'listItem' + (mode === 'cards' && i === cardIndex ? ' current' : '');
-      row.innerHTML = '<span>' + name + '</span>';
+      row.draggable = true;
+
+      const handle = document.createElement('span');
+      handle.className = 'dragHandle';
+      handle.textContent = '\u2630'; // ☰ drag handle icon
+      handle.style.flex = '0';
+
+      const label = document.createElement('span');
+      label.textContent = name;
+
       const jumpBtn = document.createElement('button');
       jumpBtn.className = 'small';
       jumpBtn.textContent = 'Show';
@@ -263,8 +305,33 @@
         updated.splice(i, 1);
         cardsRef.set(updated);
       });
+
+      row.appendChild(handle);
+      row.appendChild(label);
       row.appendChild(jumpBtn);
       row.appendChild(delBtn);
+
+      // Drag-and-drop reordering
+      row.addEventListener('dragstart', () => {
+        dragFromIndex = i;
+        row.classList.add('dragging');
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        dragFromIndex = null;
+      });
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault(); // allow dropping
+      });
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (dragFromIndex === null || dragFromIndex === i) return;
+        const updated = CARD_LIST.slice();
+        const [moved] = updated.splice(dragFromIndex, 1);
+        updated.splice(i, 0, moved);
+        cardsRef.set(updated);
+      });
+
       cardListUI.appendChild(row);
     });
   }
@@ -400,6 +467,26 @@
     if (imageIndex >= IMAGES.length) imageIndex = 0;
     renderImageListUI();
     updatePreview();
+  });
+
+  // ===== Slide text style =====
+  applyStyleBtn.addEventListener('click', () => {
+    styleRef.set({
+      textColor: styleTextColor.value,
+      accentColor: styleAccentColor.value,
+      fontFamily: styleFontFamily.value,
+      bold: styleBold.checked
+    });
+  });
+
+  // Reflect the currently-saved style in the controls (e.g. if you reload the page,
+  // or your co-host changes it from their own tab)
+  styleRef.on('value', (snap) => {
+    const style = snap.val() || {};
+    styleTextColor.value = style.textColor || '#ffffff';
+    styleAccentColor.value = style.accentColor || '#f4c04a';
+    styleFontFamily.value = style.fontFamily || "'Segoe UI', Arial, sans-serif";
+    styleBold.checked = !!style.bold;
   });
 
   // Keyboard shortcuts
