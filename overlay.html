@@ -13,7 +13,6 @@
   #stage { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
   #frame {
     background: rgba(10, 12, 20, 0.88);
-    border: 3px solid #f4c04a;
     border-radius: 20px;
     padding: 28px 36px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
@@ -29,15 +28,19 @@
     border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6);
   }
   #cardLoading { color: #f4c04a; font-size: 20px; text-align: center; padding: 20px 0; }
+  #customImg {
+    display: block; max-width: 480px; width: 100%;
+    border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+  }
+  #slideHeader { color: #f4c04a; font-size: 32px; font-weight: 700; margin-bottom: 12px; }
   #bulletList { list-style: none; margin: 0; padding: 0; color: #fff; font-size: 28px; line-height: 1.6; }
   #bulletList li {
     opacity: 0; transform: translateX(-16px);
     transition: opacity 0.4s ease, transform 0.4s ease;
     margin-bottom: 6px;
   }
-  #bulletList li::before { content: "\25B8  "; color: #f4c04a; }
+  #bulletList li::before { content: "\2022  "; color: #f4c04a; }
   #bulletList li.shown { opacity: 1; transform: translateX(0); }
-  #posLabel { text-align: center; color: #999; font-size: 13px; margin-top: 14px; letter-spacing: 0.5px; }
 </style>
 </head>
 <body>
@@ -45,8 +48,11 @@
 <div id="stage">
   <div id="frame">
     <div id="cardWrap" style="display:none;"><img id="cardImg" src="" alt="Magic card"></div>
-    <div id="bulletWrap" style="display:none;"><ul id="bulletList"></ul></div>
-    <div id="posLabel"></div>
+    <div id="bulletWrap" style="display:none;">
+      <div id="slideHeader" style="display:none;"></div>
+      <ul id="bulletList"></ul>
+    </div>
+    <div id="imageWrap" style="display:none;"><img id="customImg" src="" alt="Uploaded image"></div>
   </div>
 </div>
 
@@ -82,12 +88,15 @@
   const bulletWrap = document.getElementById('bulletWrap');
   const cardImg = document.getElementById('cardImg');
   const bulletList = document.getElementById('bulletList');
-  const posLabel = document.getElementById('posLabel');
+  const slideHeader = document.getElementById('slideHeader');
+  const imageWrap = document.getElementById('imageWrap');
+  const customImg = document.getElementById('customImg');
 
-  // Cards and slides now live in Firebase, not hardcoded here.
+  // Cards, slides, and images now live in Firebase, not hardcoded here.
   // You manage them entirely from control.html.
   let CARD_LIST = [];
   let SLIDES = [];
+  let IMAGES = [];
   let currentState = null;
 
   const cardImageCache = {};
@@ -120,7 +129,7 @@
     if (!name) { hideFrame(); return; }
     cardWrap.style.display = 'block';
     bulletWrap.style.display = 'none';
-    posLabel.textContent = 'Card ' + (index + 1) + ' / ' + CARD_LIST.length;
+    imageWrap.style.display = 'none';
     showFrame();
     try {
       const img = await fetchCardImage(name);
@@ -135,10 +144,24 @@
   }
 
   function renderSlide(index) {
-    const lines = SLIDES[index];
-    if (!lines) { hideFrame(); return; }
+    const entry = SLIDES[index];
+    if (!entry) { hideFrame(); return; }
+    // Support both the old format (plain array of lines) and the new
+    // format ({ header, bullets }) so nothing breaks for existing slides.
+    const header = Array.isArray(entry) ? '' : (entry.header || '');
+    const lines = Array.isArray(entry) ? entry : (entry.bullets || []);
+
     cardWrap.style.display = 'none';
     bulletWrap.style.display = 'block';
+    imageWrap.style.display = 'none';
+
+    if (header) {
+      slideHeader.textContent = header;
+      slideHeader.style.display = 'block';
+    } else {
+      slideHeader.style.display = 'none';
+    }
+
     bulletList.innerHTML = '';
     lines.forEach((line, i) => {
       const li = document.createElement('li');
@@ -146,7 +169,16 @@
       bulletList.appendChild(li);
       setTimeout(() => li.classList.add('shown'), 120 * i);
     });
-    posLabel.textContent = 'Slide ' + (index + 1) + ' / ' + SLIDES.length;
+    showFrame();
+  }
+
+  function renderImage(index) {
+    const entry = IMAGES[index];
+    if (!entry) { hideFrame(); return; }
+    cardWrap.style.display = 'none';
+    bulletWrap.style.display = 'none';
+    imageWrap.style.display = 'block';
+    customImg.src = entry.dataUrl;
     showFrame();
   }
 
@@ -154,6 +186,7 @@
     if (!currentState) return;
     if (currentState.mode === 'cards') renderCard(currentState.cardIndex || 0);
     else if (currentState.mode === 'slides') renderSlide(currentState.slideIndex || 0);
+    else if (currentState.mode === 'images') renderImage(currentState.imageIndex || 0);
     else if (currentState.mode === 'clear') hideFrame();
   }
 
@@ -167,6 +200,12 @@
   // Live-sync the slide list
   db.ref('overlay/slides').on('value', (snap) => {
     SLIDES = snap.val() || [];
+    renderCurrent();
+  });
+
+  // Live-sync the image list
+  db.ref('overlay/images').on('value', (snap) => {
+    IMAGES = snap.val() || [];
     renderCurrent();
   });
 
