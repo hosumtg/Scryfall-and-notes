@@ -92,6 +92,7 @@
 <div class="row">
   <button id="btnCards" class="mode">Cards</button>
   <button id="btnSlides" class="mode">Slides</button>
+  <button id="btnImages" class="mode">Images</button>
 </div>
 
 <div class="row">
@@ -111,10 +112,21 @@
   <div id="cardListUI" style="margin-top:10px;"></div>
 </div>
 
+<!-- ===== Custom image uploader ===== -->
+<div class="panel">
+  <h2>Images</h2>
+  <input id="newImageInput" type="file" accept="image/png, image/jpeg">
+  <input id="newImageLabel" type="text" placeholder="Label (optional), e.g. Deck list">
+  <button id="addImageBtn" class="small">Add image</button>
+  <div id="imageUploadStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+  <div id="imageListUI"></div>
+</div>
+
 <!-- ===== Slides editor ===== -->
 <div class="panel">
   <h2>Slides (bullet points)</h2>
-  <textarea id="newSlideInput" rows="4" placeholder="One bullet per line, e.g.&#10;Host 1&#10;Playing since 2015&#10;Prefers aggro decks"></textarea>
+  <input id="newSlideHeaderInput" type="text" placeholder="Header (optional), e.g. Host 1">
+  <textarea id="newSlideInput" rows="4" placeholder="One bullet per line, e.g.&#10;Playing since 2015&#10;Prefers aggro decks"></textarea>
   <button id="addSlideBtn" class="small">Add slide</button>
   <div id="slideListUI" style="margin-top:10px;"></div>
 </div>
@@ -148,26 +160,43 @@
   const stateRef = db.ref('overlay/state');
   const cardsRef = db.ref('overlay/cards');
   const slidesRef = db.ref('overlay/slides');
+  const imagesRef = db.ref('overlay/images');
 
   const statusEl = document.getElementById('status');
   const previewText = document.getElementById('previewText');
   const btnCards = document.getElementById('btnCards');
   const btnSlides = document.getElementById('btnSlides');
+  const btnImages = document.getElementById('btnImages');
   const btnPrev = document.getElementById('btnPrev');
   const btnNext = document.getElementById('btnNext');
   const btnHide = document.getElementById('btnHide');
   const cardListUI = document.getElementById('cardListUI');
   const slideListUI = document.getElementById('slideListUI');
+  const imageListUI = document.getElementById('imageListUI');
   const newCardInput = document.getElementById('newCardInput');
   const newSlideInput = document.getElementById('newSlideInput');
+  const newSlideHeaderInput = document.getElementById('newSlideHeaderInput');
+  const newImageInput = document.getElementById('newImageInput');
+  const newImageLabel = document.getElementById('newImageLabel');
   const addCardBtn = document.getElementById('addCardBtn');
   const addSlideBtn = document.getElementById('addSlideBtn');
+  const addImageBtn = document.getElementById('addImageBtn');
+  const imageUploadStatus = document.getElementById('imageUploadStatus');
+
+  // Works whether a slide entry is the old plain-array format
+  // or the new { header, bullets } format.
+  function slideLabel(entry) {
+    if (Array.isArray(entry)) return entry[0] || '';
+    return entry.header || (entry.bullets && entry.bullets[0]) || '';
+  }
 
   let mode = 'cards';
   let cardIndex = 0;
   let slideIndex = 0;
+  let imageIndex = 0;
   let CARD_LIST = [];
   let SLIDES = [];
+  let IMAGES = [];
 
   db.ref('.info/connected').on('value', (snap) => {
     statusEl.textContent = snap.val() ? 'connected' : 'disconnected — check your config';
@@ -176,32 +205,38 @@
   function updatePreview() {
     btnCards.classList.toggle('active', mode === 'cards');
     btnSlides.classList.toggle('active', mode === 'slides');
+    btnImages.classList.toggle('active', mode === 'images');
     if (mode === 'cards' && CARD_LIST[cardIndex] !== undefined) {
       previewText.textContent = CARD_LIST[cardIndex] + '  (' + (cardIndex + 1) + '/' + CARD_LIST.length + ')';
     } else if (mode === 'slides' && SLIDES[slideIndex] !== undefined) {
-      previewText.textContent = SLIDES[slideIndex][0] + '  (' + (slideIndex + 1) + '/' + SLIDES.length + ')';
+      previewText.textContent = slideLabel(SLIDES[slideIndex]) + '  (' + (slideIndex + 1) + '/' + SLIDES.length + ')';
+    } else if (mode === 'images' && IMAGES[imageIndex] !== undefined) {
+      previewText.textContent = (IMAGES[imageIndex].label || 'Image') + '  (' + (imageIndex + 1) + '/' + IMAGES.length + ')';
     } else {
       previewText.textContent = '—';
     }
   }
 
   function push() {
-    stateRef.set({ mode, cardIndex, slideIndex, ts: Date.now() });
+    stateRef.set({ mode, cardIndex, slideIndex, imageIndex, ts: Date.now() });
     updatePreview();
   }
 
   btnCards.addEventListener('click', () => { mode = 'cards'; push(); });
   btnSlides.addEventListener('click', () => { mode = 'slides'; push(); });
+  btnImages.addEventListener('click', () => { mode = 'images'; push(); });
 
   btnNext.addEventListener('click', () => {
     if (mode === 'cards' && CARD_LIST.length) cardIndex = (cardIndex + 1) % CARD_LIST.length;
     else if (mode === 'slides' && SLIDES.length) slideIndex = (slideIndex + 1) % SLIDES.length;
+    else if (mode === 'images' && IMAGES.length) imageIndex = (imageIndex + 1) % IMAGES.length;
     push();
   });
 
   btnPrev.addEventListener('click', () => {
     if (mode === 'cards' && CARD_LIST.length) cardIndex = (cardIndex - 1 + CARD_LIST.length) % CARD_LIST.length;
     else if (mode === 'slides' && SLIDES.length) slideIndex = (slideIndex - 1 + SLIDES.length) % SLIDES.length;
+    else if (mode === 'images' && IMAGES.length) imageIndex = (imageIndex - 1 + IMAGES.length) % IMAGES.length;
     push();
   });
 
@@ -247,10 +282,12 @@
   // ===== Slide list editor =====
   function renderSlideListUI() {
     slideListUI.innerHTML = '';
-    SLIDES.forEach((lines, i) => {
+    SLIDES.forEach((entry, i) => {
+      const bullets = Array.isArray(entry) ? entry : (entry.bullets || []);
+      const header = Array.isArray(entry) ? '' : (entry.header || '');
       const row = document.createElement('div');
       row.className = 'listItem' + (mode === 'slides' && i === slideIndex ? ' current' : '');
-      row.innerHTML = '<span>' + lines.join(' · ') + '</span>';
+      row.innerHTML = '<span>' + (header ? '<strong>' + header + '</strong>: ' : '') + bullets.join(' · ') + '</span>';
       const jumpBtn = document.createElement('button');
       jumpBtn.className = 'small';
       jumpBtn.textContent = 'Show';
@@ -271,10 +308,77 @@
 
   addSlideBtn.addEventListener('click', () => {
     const lines = newSlideInput.value.split('\n').map(s => s.trim()).filter(Boolean);
-    if (!lines.length) return;
-    slidesRef.set(SLIDES.concat([lines]));
+    const header = newSlideHeaderInput.value.trim();
+    if (!lines.length && !header) return;
+    slidesRef.set(SLIDES.concat([{ header, bullets: lines }]));
     newSlideInput.value = '';
+    newSlideHeaderInput.value = '';
   });
+
+  // ===== Image uploader =====
+  // Resizes/compresses on the client so the database stays small and fast.
+  function fileToCompressedDataURL(file, maxWidth = 900, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Could not decode image'));
+        img.onload = () => {
+          const scale = Math.min(1, maxWidth / img.width);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  addImageBtn.addEventListener('click', async () => {
+    const file = newImageInput.files[0];
+    if (!file) { imageUploadStatus.textContent = 'Choose a file first.'; return; }
+    imageUploadStatus.textContent = 'Processing...';
+    try {
+      const dataUrl = await fileToCompressedDataURL(file);
+      const label = newImageLabel.value.trim();
+      imagesRef.set(IMAGES.concat([{ label, dataUrl }]));
+      newImageInput.value = '';
+      newImageLabel.value = '';
+      imageUploadStatus.textContent = 'Added.';
+      setTimeout(() => { imageUploadStatus.textContent = ''; }, 2000);
+    } catch (e) {
+      imageUploadStatus.textContent = 'Upload failed: ' + e.message;
+    }
+  });
+
+  function renderImageListUI() {
+    imageListUI.innerHTML = '';
+    IMAGES.forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.className = 'listItem' + (mode === 'images' && i === imageIndex ? ' current' : '');
+      row.innerHTML = '<span>' + (entry.label || 'Image ' + (i + 1)) + '</span>';
+      const jumpBtn = document.createElement('button');
+      jumpBtn.className = 'small';
+      jumpBtn.textContent = 'Show';
+      jumpBtn.addEventListener('click', () => { mode = 'images'; imageIndex = i; push(); });
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        const updated = IMAGES.slice();
+        updated.splice(i, 1);
+        imagesRef.set(updated);
+      });
+      row.appendChild(jumpBtn);
+      row.appendChild(delBtn);
+      imageListUI.appendChild(row);
+    });
+  }
 
   // Live-sync lists from Firebase so edits reflect instantly, including from other tabs
   cardsRef.on('value', (snap) => {
@@ -291,13 +395,22 @@
     updatePreview();
   });
 
+  imagesRef.on('value', (snap) => {
+    IMAGES = snap.val() || [];
+    if (imageIndex >= IMAGES.length) imageIndex = 0;
+    renderImageListUI();
+    updatePreview();
+  });
+
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
-    if (document.activeElement === newCardInput || document.activeElement === newSlideInput) return;
+    if (document.activeElement === newCardInput || document.activeElement === newSlideInput
+        || document.activeElement === newSlideHeaderInput || document.activeElement === newImageLabel) return;
     if (e.key === 'ArrowRight') btnNext.click();
     else if (e.key === 'ArrowLeft') btnPrev.click();
     else if (e.key === '1') btnCards.click();
     else if (e.key === '2') btnSlides.click();
+    else if (e.key === '3') btnImages.click();
     else if (e.key === 'Escape') btnHide.click();
   });
 
