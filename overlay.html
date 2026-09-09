@@ -2,34 +2,36 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Podcast Overlay (OBS source)</title>
+<title>Podcast Overlay (OBS source — 1920x1080)</title>
 <style>
   html, body {
-    margin: 0; padding: 0; width: 100%; height: 100%;
+    margin: 0; padding: 0;
+    width: 1920px; height: 1080px;
     background: transparent;
     font-family: 'Segoe UI', Arial, sans-serif;
     overflow: hidden;
   }
-  #stage { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
-  #frame {
+  #canvas { position: relative; width: 1920px; height: 1080px; }
+
+  /* ===== Content zone (cards / slides / images) ===== */
+  #contentZone {
+    position: absolute;
+    left: 650px; top: 540px;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  #contentInner {
+    padding: 24px 30px;
+    border-radius: 20px;
     background: transparent;
-    padding: 12px;
-    max-width: 640px;
-    min-width: 320px;
     opacity: 0;
-    transform: scale(0.96);
-    transition: opacity 0.35s ease, transform 0.35s ease;
+    transition: opacity 0.35s ease;
   }
-  #frame.visible { opacity: 1; transform: scale(1); }
-  #cardImg {
-    display: block; max-width: 420px; width: 100%;
-    border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6);
-  }
+  #contentInner.visible { opacity: 1; }
+
+  #cardImg { display: block; max-width: 420px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
   #cardLoading { color: #f4c04a; font-size: 20px; text-align: center; padding: 20px 0; }
-  #customImg {
-    display: block; max-width: 480px; width: 100%;
-    border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6);
-  }
+  #customImg { display: block; max-width: 480px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
+
   :root {
     --slide-text-color: #ffffff;
     --slide-accent-color: #f4c04a;
@@ -39,9 +41,7 @@
   #slideHeader {
     color: var(--slide-accent-color);
     font-family: var(--slide-font-family);
-    font-size: 32px;
-    font-weight: 700;
-    margin-bottom: 12px;
+    font-size: 32px; font-weight: 700; margin-bottom: 12px;
   }
   #bulletList {
     list-style: none; margin: 0; padding: 0;
@@ -57,19 +57,84 @@
   }
   #bulletList li::before { content: "\2022  "; color: var(--slide-accent-color); }
   #bulletList li.shown { opacity: 1; transform: translateX(0); }
+
+  /* ===== Webcam boxes ===== */
+  .camBox {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    overflow: hidden;
+  }
+  .camBox video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .camBox .namePlate {
+    position: absolute;
+    left: 10px; bottom: 10px;
+    background: rgba(10, 12, 20, 0.82);
+    border-radius: 8px;
+    padding: 4px 12px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .camBox .deviceBar { position: absolute; top: 8px; right: 8px; z-index: 5; }
+  .camBox .deviceBar select {
+    background: rgba(0,0,0,0.7); color: #fff;
+    border: 1px solid #f4c04a; border-radius: 6px;
+    font-size: 11px; padding: 3px 5px; max-width: 140px;
+  }
+  .camBox .permissionPrompt {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 10px;
+    background: rgba(10,12,20,0.9);
+    text-align: center; padding: 14px;
+  }
+  .camBox .permissionPrompt p { color: #ccc; font-size: 12px; max-width: 220px; margin: 0; }
+  .camBox .permissionPrompt button {
+    background: #f4c04a; color: #1a1300; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
 </style>
 </head>
 <body>
 
-<div id="stage">
-  <div id="frame">
-    <div id="cardWrap" style="display:none;"><img id="cardImg" src="" alt="Magic card"></div>
-    <div id="bulletWrap" style="display:none;">
-      <div id="slideHeader" style="display:none;"></div>
-      <ul id="bulletList"></ul>
+<div id="canvas">
+
+  <div id="contentZone">
+    <div id="contentInner">
+      <div id="cardWrap" style="display:none;"><img id="cardImg" src="" alt="Magic card"></div>
+      <div id="bulletWrap" style="display:none;">
+        <div id="slideHeader" style="display:none;"></div>
+        <ul id="bulletList"></ul>
+      </div>
+      <div id="imageWrap" style="display:none;"><img id="customImg" src="" alt="Uploaded image"></div>
     </div>
-    <div id="imageWrap" style="display:none;"><img id="customImg" src="" alt="Uploaded image"></div>
   </div>
+
+  <div id="cam1Box" class="camBox">
+    <video id="cam1Video" autoplay playsinline muted></video>
+    <div class="namePlate" id="cam1Name"></div>
+    <div class="deviceBar"><select id="cam1DeviceSelect"><option>Loading...</option></select></div>
+    <div class="permissionPrompt" id="cam1Prompt">
+      <p>Camera 1 needs access. Right-click this source in OBS &rarr; Interact, then click below.</p>
+      <button id="cam1GrantBtn">Enable camera 1</button>
+    </div>
+  </div>
+
+  <div id="cam2Box" class="camBox">
+    <video id="cam2Video" autoplay playsinline muted></video>
+    <div class="namePlate" id="cam2Name"></div>
+    <div class="deviceBar"><select id="cam2DeviceSelect"><option>Loading...</option></select></div>
+    <div class="permissionPrompt" id="cam2Prompt">
+      <p>Camera 2 needs access. Right-click this source in OBS &rarr; Interact, then click below.</p>
+      <button id="cam2GrantBtn">Enable camera 2</button>
+    </div>
+  </div>
+
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -77,29 +142,25 @@
 
 <script>
   /* =========================================================
-     PASTE YOUR FIREBASE CONFIG HERE (same one used in control.html)
+     FIREBASE CONFIG
      ========================================================= */
   const firebaseConfig = {
-  apiKey: "AIzaSyA0BNDN63NtjldE7g8g131oc24u1DKGEgg",
-
-  authDomain: "card-mastery.firebaseapp.com",
-
-  projectId: "card-mastery",
-
-  storageBucket: "card-mastery.firebasestorage.app",
-
-  messagingSenderId: "19360834477",
-
-  appId: "1:19360834477:web:8a1df5c084ce73eab73724",
-
-  measurementId: "G-GPNPENMG39"
+    apiKey: "AIzaSyA0BNDN63NtjldE7g8g131oc24u1DKGEgg",
+    authDomain: "card-mastery.firebaseapp.com",
+    projectId: "card-mastery",
+    storageBucket: "card-mastery.firebasestorage.app",
+    messagingSenderId: "19360834477",
+    appId: "1:19360834477:web:8a1df5c084ce73eab73724",
+    measurementId: "G-GPNPENMG39"
   };
   /* ========================================================= */
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  const frame = document.getElementById('frame');
+  /* ============ Content zone (cards / slides / images) ============ */
+  const contentZone = document.getElementById('contentZone');
+  const contentInner = document.getElementById('contentInner');
   const cardWrap = document.getElementById('cardWrap');
   const bulletWrap = document.getElementById('bulletWrap');
   const cardImg = document.getElementById('cardImg');
@@ -108,8 +169,6 @@
   const imageWrap = document.getElementById('imageWrap');
   const customImg = document.getElementById('customImg');
 
-  // Cards, slides, and images now live in Firebase, not hardcoded here.
-  // You manage them entirely from control.html.
   let CARD_LIST = [];
   let SLIDES = [];
   let IMAGES = [];
@@ -123,7 +182,6 @@
     if (!res.ok) throw new Error('not found');
     const data = await res.json();
     const uris = data.image_uris || (data.card_faces && data.card_faces[0].image_uris);
-    // Prefer the highest quality available: png > large > normal
     const img = uris ? (uris.png || uris.large || uris.normal) : null;
     if (!img) throw new Error('no image');
     cardImageCache[name] = img;
@@ -138,16 +196,16 @@
     });
   }
 
-  function showFrame() { frame.classList.add('visible'); }
-  function hideFrame() { frame.classList.remove('visible'); }
+  function showContent() { contentInner.classList.add('visible'); }
+  function hideContent() { contentInner.classList.remove('visible'); }
 
   async function renderCard(index) {
     const name = CARD_LIST[index];
-    if (!name) { hideFrame(); return; }
+    if (!name) { hideContent(); return; }
     cardWrap.style.display = 'block';
     bulletWrap.style.display = 'none';
     imageWrap.style.display = 'none';
-    showFrame();
+    showContent();
     try {
       const img = await fetchCardImage(name);
       cardWrap.innerHTML = '';
@@ -162,9 +220,7 @@
 
   function renderSlide(index) {
     const entry = SLIDES[index];
-    if (!entry) { hideFrame(); return; }
-    // Support both the old format (plain array of lines) and the new
-    // format ({ header, bullets }) so nothing breaks for existing slides.
+    if (!entry) { hideContent(); return; }
     const header = Array.isArray(entry) ? '' : (entry.header || '');
     const lines = Array.isArray(entry) ? entry : (entry.bullets || []);
 
@@ -186,17 +242,17 @@
       bulletList.appendChild(li);
       setTimeout(() => li.classList.add('shown'), 120 * i);
     });
-    showFrame();
+    showContent();
   }
 
   function renderImage(index) {
     const entry = IMAGES[index];
-    if (!entry) { hideFrame(); return; }
+    if (!entry) { hideContent(); return; }
     cardWrap.style.display = 'none';
     bulletWrap.style.display = 'none';
     imageWrap.style.display = 'block';
     customImg.src = entry.dataUrl;
-    showFrame();
+    showContent();
   }
 
   function renderCurrent() {
@@ -204,29 +260,22 @@
     if (currentState.mode === 'cards') renderCard(currentState.cardIndex || 0);
     else if (currentState.mode === 'slides') renderSlide(currentState.slideIndex || 0);
     else if (currentState.mode === 'images') renderImage(currentState.imageIndex || 0);
-    else if (currentState.mode === 'clear') hideFrame();
+    else if (currentState.mode === 'clear') hideContent();
   }
 
-  // Live-sync the card list
   db.ref('overlay/cards').on('value', (snap) => {
     CARD_LIST = snap.val() || [];
     preloadNewCards(CARD_LIST);
     renderCurrent();
   });
-
-  // Live-sync the slide list
   db.ref('overlay/slides').on('value', (snap) => {
     SLIDES = snap.val() || [];
     renderCurrent();
   });
-
-  // Live-sync the image list
   db.ref('overlay/images').on('value', (snap) => {
     IMAGES = snap.val() || [];
     renderCurrent();
   });
-
-  // Live-sync slide text styling (color, font, weight)
   db.ref('overlay/style').on('value', (snap) => {
     const style = snap.val() || {};
     const root = document.documentElement.style;
@@ -235,12 +284,119 @@
     root.setProperty('--slide-font-family', style.fontFamily || "'Segoe UI', Arial, sans-serif");
     root.setProperty('--slide-font-weight', style.bold ? '700' : '400');
   });
-
-  // Live-sync what should currently be displayed
   db.ref('overlay/state').on('value', (snap) => {
     currentState = snap.val();
     renderCurrent();
   });
+
+  /* ============ Layout (position / size / style for everything) ============ */
+  const DEFAULT_LAYOUT = {
+    content: { centerX: 650, centerY: 540, scale: 1, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 20 },
+    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, cornerRadius: 18 },
+    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, cornerRadius: 18 }
+  };
+
+  const cam1Box = document.getElementById('cam1Box');
+  const cam2Box = document.getElementById('cam2Box');
+  const cam1Name = document.getElementById('cam1Name');
+  const cam2Name = document.getElementById('cam2Name');
+
+  function applyLayout(layout) {
+    const c = Object.assign({}, DEFAULT_LAYOUT.content, layout.content);
+    const c1 = Object.assign({}, DEFAULT_LAYOUT.cam1, layout.cam1);
+    const c2 = Object.assign({}, DEFAULT_LAYOUT.cam2, layout.cam2);
+
+    contentZone.style.left = c.centerX + 'px';
+    contentZone.style.top = c.centerY + 'px';
+    contentZone.style.transform = 'translate(-50%, -50%) scale(' + c.scale + ')';
+    contentInner.style.borderRadius = c.cornerRadius + 'px';
+    if (c.bgEnabled) {
+      const hex = c.bgColor.replace('#', '');
+      const r = parseInt(hex.substring(0,2), 16);
+      const g = parseInt(hex.substring(2,4), 16);
+      const b = parseInt(hex.substring(4,6), 16);
+      contentInner.style.background = 'rgba(' + r + ',' + g + ',' + b + ',' + c.bgOpacity + ')';
+    } else {
+      contentInner.style.background = 'transparent';
+    }
+
+    cam1Box.style.left = c1.centerX + 'px';
+    cam1Box.style.top = c1.centerY + 'px';
+    cam1Box.style.width = c1.width + 'px';
+    cam1Box.style.height = c1.height + 'px';
+    cam1Box.style.borderRadius = c1.cornerRadius + 'px';
+    cam1Name.style.display = c1.nameplateEnabled ? 'block' : 'none';
+    cam1Name.textContent = c1.name;
+
+    cam2Box.style.left = c2.centerX + 'px';
+    cam2Box.style.top = c2.centerY + 'px';
+    cam2Box.style.width = c2.width + 'px';
+    cam2Box.style.height = c2.height + 'px';
+    cam2Box.style.borderRadius = c2.cornerRadius + 'px';
+    cam2Name.style.display = c2.nameplateEnabled ? 'block' : 'none';
+    cam2Name.textContent = c2.name;
+  }
+
+  applyLayout({});
+  db.ref('overlay/layout').on('value', (snap) => {
+    applyLayout(snap.val() || {});
+  });
+
+  /* ============ Webcams (local devices — not synced via Firebase) ============ */
+  function setupCamera(videoEl, selectEl, promptEl, grantBtnId, storageKey) {
+    let stream = null;
+
+    async function start(deviceId) {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      const constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : true, audio: false };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      videoEl.srcObject = stream;
+      promptEl.style.display = 'none';
+      if (deviceId) localStorage.setItem(storageKey, deviceId);
+      await populateDevices();
+    }
+
+    async function populateDevices() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter(d => d.kind === 'videoinput');
+      selectEl.innerHTML = '';
+      cams.forEach((cam, i) => {
+        const opt = document.createElement('option');
+        opt.value = cam.deviceId;
+        opt.textContent = cam.label || ('Camera ' + (i + 1));
+        selectEl.appendChild(opt);
+      });
+      const saved = localStorage.getItem(storageKey);
+      if (saved && cams.some(c => c.deviceId === saved)) selectEl.value = saved;
+    }
+
+    selectEl.addEventListener('change', () => {
+      start(selectEl.value).catch(() => { promptEl.style.display = 'flex'; });
+    });
+
+    document.getElementById(grantBtnId).addEventListener('click', () => {
+      const saved = localStorage.getItem(storageKey);
+      start(saved || undefined).catch(() => { promptEl.style.display = 'flex'; });
+    });
+
+    const saved = localStorage.getItem(storageKey);
+    start(saved || undefined).catch(() => { promptEl.style.display = 'flex'; });
+  }
+
+  setupCamera(
+    document.getElementById('cam1Video'),
+    document.getElementById('cam1DeviceSelect'),
+    document.getElementById('cam1Prompt'),
+    'cam1GrantBtn',
+    'cam1DeviceId'
+  );
+  setupCamera(
+    document.getElementById('cam2Video'),
+    document.getElementById('cam2DeviceSelect'),
+    document.getElementById('cam2Prompt'),
+    'cam2GrantBtn',
+    'cam2DeviceId'
+  );
 </script>
 
 </body>
