@@ -16,6 +16,7 @@
   }
   h1 { font-size: 20px; color: #f4c04a; margin-bottom: 4px; }
   h2 { font-size: 15px; color: #f4c04a; margin: 0 0 10px; }
+  h3 { font-size: 13px; color: #ccc; margin: 14px 0 6px; }
   #status { font-size: 13px; color: #999; margin-bottom: 24px; }
   #preview {
     background: #1e2028;
@@ -53,7 +54,7 @@
     max-width: 90vw;
     margin-top: 30px;
   }
-  .panel input, .panel textarea {
+  .panel input[type="text"], .panel textarea, .panel select {
     width: 100%;
     box-sizing: border-box;
     background: #0f1015;
@@ -80,6 +81,16 @@
   .listItem[draggable="true"] { cursor: grab; }
   .listItem.dragging { opacity: 0.4; }
   .listItem .dragHandle { color: #666; margin-right: 8px; cursor: grab; user-select: none; }
+
+  .sliderRow { margin-bottom: 12px; }
+  .sliderRow label { display: flex; justify-content: space-between; font-size: 13px; color: #ccc; margin-bottom: 4px; }
+  .sliderRow input[type="range"] { width: 100%; }
+  .sliderRow .val { color: #f4c04a; font-weight: 600; }
+  .colorRow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .colorRow input[type="color"] { width: 44px; height: 32px; border: none; background: none; padding: 0; }
+  .colorRow label { font-size: 13px; color: #ccc; }
+  .checkRow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #ccc; margin-bottom: 10px; }
+  .subPanel { border-top: 1px solid #2a2d38; padding-top: 12px; margin-top: 12px; }
 </style>
 </head>
 <body>
@@ -137,12 +148,15 @@
 <!-- ===== Slide text style ===== -->
 <div class="panel">
   <h2>Slide Text Style</h2>
-  <label style="font-size:13px; color:#999; display:block; margin-bottom:4px;">Text color</label>
-  <input id="styleTextColor" type="color" value="#ffffff" style="width:100%; height:36px; margin-bottom:10px;">
-  <label style="font-size:13px; color:#999; display:block; margin-bottom:4px;">Accent color (header + bullet dots)</label>
-  <input id="styleAccentColor" type="color" value="#f4c04a" style="width:100%; height:36px; margin-bottom:10px;">
-  <label style="font-size:13px; color:#999; display:block; margin-bottom:4px;">Font</label>
-  <select id="styleFontFamily" style="width:100%; padding:8px; margin-bottom:10px; background:#0f1015; color:#fff; border:1px solid #444; border-radius:8px;">
+  <div class="colorRow">
+    <input id="styleTextColor" type="color" value="#ffffff">
+    <label>Text color</label>
+  </div>
+  <div class="colorRow">
+    <input id="styleAccentColor" type="color" value="#f4c04a">
+    <label>Accent color (header + bullet dots)</label>
+  </div>
+  <select id="styleFontFamily">
     <option value="'Segoe UI', Arial, sans-serif">Segoe UI (default)</option>
     <option value="Georgia, serif">Georgia (serif)</option>
     <option value="'Courier New', monospace">Courier New (mono)</option>
@@ -150,10 +164,95 @@
     <option value="Impact, sans-serif">Impact</option>
     <option value="Verdana, sans-serif">Verdana</option>
   </select>
-  <label style="font-size:13px; color:#ccc; display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-    <input id="styleBold" type="checkbox"> Bold bullet text
-  </label>
+  <div class="checkRow"><input id="styleBold" type="checkbox"> Bold bullet text</div>
   <button id="applyStyleBtn" class="small">Apply style</button>
+</div>
+
+<!-- ===== Layout: position, size, and style for content + both webcams ===== -->
+<div class="panel">
+  <h2>Layout (1920x1080 canvas)</h2>
+
+  <h3>Content zone (cards / slides / images)</h3>
+  <div class="sliderRow">
+    <label>Center X <span class="val" id="contentXVal">650</span></label>
+    <input id="contentX" type="range" min="0" max="1920" value="650">
+  </div>
+  <div class="sliderRow">
+    <label>Center Y <span class="val" id="contentYVal">540</span></label>
+    <input id="contentY" type="range" min="0" max="1080" value="540">
+  </div>
+  <div class="sliderRow">
+    <label>Size <span class="val" id="contentScaleVal">100%</span></label>
+    <input id="contentScale" type="range" min="50" max="200" value="100">
+  </div>
+  <div class="checkRow"><input id="contentBgEnabled" type="checkbox"> Show background</div>
+  <div class="colorRow">
+    <input id="contentBgColor" type="color" value="#0a0c14">
+    <label>Background color</label>
+  </div>
+  <div class="sliderRow">
+    <label>Background opacity <span class="val" id="contentBgOpacityVal">85%</span></label>
+    <input id="contentBgOpacity" type="range" min="0" max="100" value="85">
+  </div>
+  <div class="sliderRow">
+    <label>Corner roundness <span class="val" id="contentRadiusVal">20px</span></label>
+    <input id="contentRadius" type="range" min="0" max="60" value="20">
+  </div>
+  <button id="resetContentBtn" class="small">Reset content layout</button>
+
+  <div class="subPanel">
+    <h3>Webcam 1</h3>
+    <input id="cam1NameInput" type="text" placeholder="Name, e.g. Alex">
+    <div class="sliderRow">
+      <label>Center X <span class="val" id="cam1XVal">1670</span></label>
+      <input id="cam1X" type="range" min="0" max="1920" value="1670">
+    </div>
+    <div class="sliderRow">
+      <label>Center Y <span class="val" id="cam1YVal">280</span></label>
+      <input id="cam1Y" type="range" min="0" max="1080" value="280">
+    </div>
+    <div class="sliderRow">
+      <label>Width <span class="val" id="cam1WVal">500</span></label>
+      <input id="cam1W" type="range" min="100" max="1000" value="500">
+    </div>
+    <div class="sliderRow">
+      <label>Height <span class="val" id="cam1HVal">320</span></label>
+      <input id="cam1H" type="range" min="100" max="800" value="320">
+    </div>
+    <div class="sliderRow">
+      <label>Corner roundness <span class="val" id="cam1RVal">18px</span></label>
+      <input id="cam1R" type="range" min="0" max="100" value="18">
+    </div>
+    <div class="checkRow"><input id="cam1NameplateEnabled" type="checkbox" checked> Show nameplate</div>
+    <button id="resetCam1Btn" class="small">Reset webcam 1 layout</button>
+  </div>
+
+  <div class="subPanel">
+    <h3>Webcam 2</h3>
+    <input id="cam2NameInput" type="text" placeholder="Name, e.g. Jordan">
+    <div class="sliderRow">
+      <label>Center X <span class="val" id="cam2XVal">1670</span></label>
+      <input id="cam2X" type="range" min="0" max="1920" value="1670">
+    </div>
+    <div class="sliderRow">
+      <label>Center Y <span class="val" id="cam2YVal">700</span></label>
+      <input id="cam2Y" type="range" min="0" max="1080" value="700">
+    </div>
+    <div class="sliderRow">
+      <label>Width <span class="val" id="cam2WVal">500</span></label>
+      <input id="cam2W" type="range" min="100" max="1000" value="500">
+    </div>
+    <div class="sliderRow">
+      <label>Height <span class="val" id="cam2HVal">320</span></label>
+      <input id="cam2H" type="range" min="100" max="800" value="320">
+    </div>
+    <div class="sliderRow">
+      <label>Corner roundness <span class="val" id="cam2RVal">18px</span></label>
+      <input id="cam2R" type="range" min="0" max="100" value="18">
+    </div>
+    <div class="checkRow"><input id="cam2NameplateEnabled" type="checkbox" checked> Show nameplate</div>
+    <button id="resetCam2Btn" class="small">Reset webcam 2 layout</button>
+  </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -161,22 +260,16 @@
 
 <script>
   /* =========================================================
-     PASTE YOUR FIREBASE CONFIG HERE (same one used in overlay.html)
+     FIREBASE CONFIG
      ========================================================= */
   const firebaseConfig = {
-  apiKey: "AIzaSyA0BNDN63NtjldE7g8g131oc24u1DKGEgg",
-
-  authDomain: "card-mastery.firebaseapp.com",
-
-  projectId: "card-mastery",
-
-  storageBucket: "card-mastery.firebasestorage.app",
-
-  messagingSenderId: "19360834477",
-
-  appId: "1:19360834477:web:8a1df5c084ce73eab73724",
-
-  measurementId: "G-GPNPENMG39"
+    apiKey: "AIzaSyA0BNDN63NtjldE7g8g131oc24u1DKGEgg",
+    authDomain: "card-mastery.firebaseapp.com",
+    projectId: "card-mastery",
+    storageBucket: "card-mastery.firebasestorage.app",
+    messagingSenderId: "19360834477",
+    appId: "1:19360834477:web:8a1df5c084ce73eab73724",
+    measurementId: "G-GPNPENMG39"
   };
   /* ========================================================= */
 
@@ -186,6 +279,8 @@
   const cardsRef = db.ref('overlay/cards');
   const slidesRef = db.ref('overlay/slides');
   const imagesRef = db.ref('overlay/images');
+  const styleRef = db.ref('overlay/style');
+  const layoutRef = db.ref('overlay/layout');
 
   const statusEl = document.getElementById('status');
   const previewText = document.getElementById('previewText');
@@ -212,10 +307,7 @@
   const styleFontFamily = document.getElementById('styleFontFamily');
   const styleBold = document.getElementById('styleBold');
   const applyStyleBtn = document.getElementById('applyStyleBtn');
-  const styleRef = db.ref('overlay/style');
 
-  // Works whether a slide entry is the old plain-array format
-  // or the new { header, bullets } format.
   function slideLabel(entry) {
     if (Array.isArray(entry)) return entry[0] || '';
     return entry.header || (entry.bullets && entry.bullets[0]) || '';
@@ -286,9 +378,10 @@
       row.draggable = true;
 
       const handle = document.createElement('span');
-      handle.className = 'dragHandle';
-      handle.textContent = '\u2630'; // ☰ drag handle icon
+      handle.textContent = '\u2630';
       handle.style.flex = '0';
+      handle.style.marginRight = '8px';
+      handle.style.color = '#666';
 
       const label = document.createElement('span');
       label.textContent = name;
@@ -311,18 +404,9 @@
       row.appendChild(jumpBtn);
       row.appendChild(delBtn);
 
-      // Drag-and-drop reordering
-      row.addEventListener('dragstart', () => {
-        dragFromIndex = i;
-        row.classList.add('dragging');
-      });
-      row.addEventListener('dragend', () => {
-        row.classList.remove('dragging');
-        dragFromIndex = null;
-      });
-      row.addEventListener('dragover', (e) => {
-        e.preventDefault(); // allow dropping
-      });
+      row.addEventListener('dragstart', () => { dragFromIndex = i; row.classList.add('dragging'); });
+      row.addEventListener('dragend', () => { row.classList.remove('dragging'); dragFromIndex = null; });
+      row.addEventListener('dragover', (e) => e.preventDefault());
       row.addEventListener('drop', (e) => {
         e.preventDefault();
         if (dragFromIndex === null || dragFromIndex === i) return;
@@ -342,9 +426,7 @@
     cardsRef.set(CARD_LIST.concat([name]));
     newCardInput.value = '';
   });
-  newCardInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') addCardBtn.click();
-  });
+  newCardInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCardBtn.click(); });
 
   // ===== Slide list editor =====
   function renderSlideListUI() {
@@ -383,7 +465,6 @@
   });
 
   // ===== Image uploader =====
-  // Resizes/compresses on the client so the database stays small and fast.
   function fileToCompressedDataURL(file, maxWidth = 900, quality = 0.82) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -447,7 +528,6 @@
     });
   }
 
-  // Live-sync lists from Firebase so edits reflect instantly, including from other tabs
   cardsRef.on('value', (snap) => {
     CARD_LIST = snap.val() || [];
     if (cardIndex >= CARD_LIST.length) cardIndex = 0;
@@ -478,9 +558,6 @@
       bold: styleBold.checked
     });
   });
-
-  // Reflect the currently-saved style in the controls (e.g. if you reload the page,
-  // or your co-host changes it from their own tab)
   styleRef.on('value', (snap) => {
     const style = snap.val() || {};
     styleTextColor.value = style.textColor || '#ffffff';
@@ -489,10 +566,129 @@
     styleBold.checked = !!style.bold;
   });
 
+  // ===== Layout controls =====
+  const DEFAULT_LAYOUT = {
+    content: { centerX: 650, centerY: 540, scale: 1, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 20 },
+    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, cornerRadius: 18 },
+    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, cornerRadius: 18 }
+  };
+
+  let layout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+  let layoutWriteTimer = null;
+
+  function pushLayout() {
+    clearTimeout(layoutWriteTimer);
+    layoutWriteTimer = setTimeout(() => layoutRef.set(layout), 120);
+  }
+
+  const els = {
+    contentX: document.getElementById('contentX'), contentXVal: document.getElementById('contentXVal'),
+    contentY: document.getElementById('contentY'), contentYVal: document.getElementById('contentYVal'),
+    contentScale: document.getElementById('contentScale'), contentScaleVal: document.getElementById('contentScaleVal'),
+    contentBgEnabled: document.getElementById('contentBgEnabled'),
+    contentBgColor: document.getElementById('contentBgColor'),
+    contentBgOpacity: document.getElementById('contentBgOpacity'), contentBgOpacityVal: document.getElementById('contentBgOpacityVal'),
+    contentRadius: document.getElementById('contentRadius'), contentRadiusVal: document.getElementById('contentRadiusVal'),
+
+    cam1X: document.getElementById('cam1X'), cam1XVal: document.getElementById('cam1XVal'),
+    cam1Y: document.getElementById('cam1Y'), cam1YVal: document.getElementById('cam1YVal'),
+    cam1W: document.getElementById('cam1W'), cam1WVal: document.getElementById('cam1WVal'),
+    cam1H: document.getElementById('cam1H'), cam1HVal: document.getElementById('cam1HVal'),
+    cam1R: document.getElementById('cam1R'), cam1RVal: document.getElementById('cam1RVal'),
+    cam1NameInput: document.getElementById('cam1NameInput'),
+    cam1NameplateEnabled: document.getElementById('cam1NameplateEnabled'),
+
+    cam2X: document.getElementById('cam2X'), cam2XVal: document.getElementById('cam2XVal'),
+    cam2Y: document.getElementById('cam2Y'), cam2YVal: document.getElementById('cam2YVal'),
+    cam2W: document.getElementById('cam2W'), cam2WVal: document.getElementById('cam2WVal'),
+    cam2H: document.getElementById('cam2H'), cam2HVal: document.getElementById('cam2HVal'),
+    cam2R: document.getElementById('cam2R'), cam2RVal: document.getElementById('cam2RVal'),
+    cam2NameInput: document.getElementById('cam2NameInput'),
+    cam2NameplateEnabled: document.getElementById('cam2NameplateEnabled')
+  };
+
+  function reflectLayoutToControls() {
+    const c = layout.content, c1 = layout.cam1, c2 = layout.cam2;
+    els.contentX.value = c.centerX; els.contentXVal.textContent = c.centerX;
+    els.contentY.value = c.centerY; els.contentYVal.textContent = c.centerY;
+    els.contentScale.value = Math.round(c.scale * 100); els.contentScaleVal.textContent = Math.round(c.scale * 100) + '%';
+    els.contentBgEnabled.checked = c.bgEnabled;
+    els.contentBgColor.value = c.bgColor;
+    els.contentBgOpacity.value = Math.round(c.bgOpacity * 100); els.contentBgOpacityVal.textContent = Math.round(c.bgOpacity * 100) + '%';
+    els.contentRadius.value = c.cornerRadius; els.contentRadiusVal.textContent = c.cornerRadius + 'px';
+
+    els.cam1X.value = c1.centerX; els.cam1XVal.textContent = c1.centerX;
+    els.cam1Y.value = c1.centerY; els.cam1YVal.textContent = c1.centerY;
+    els.cam1W.value = c1.width; els.cam1WVal.textContent = c1.width;
+    els.cam1H.value = c1.height; els.cam1HVal.textContent = c1.height;
+    els.cam1R.value = c1.cornerRadius; els.cam1RVal.textContent = c1.cornerRadius + 'px';
+    els.cam1NameInput.value = c1.name;
+    els.cam1NameplateEnabled.checked = c1.nameplateEnabled;
+
+    els.cam2X.value = c2.centerX; els.cam2XVal.textContent = c2.centerX;
+    els.cam2Y.value = c2.centerY; els.cam2YVal.textContent = c2.centerY;
+    els.cam2W.value = c2.width; els.cam2WVal.textContent = c2.width;
+    els.cam2H.value = c2.height; els.cam2HVal.textContent = c2.height;
+    els.cam2R.value = c2.cornerRadius; els.cam2RVal.textContent = c2.cornerRadius + 'px';
+    els.cam2NameInput.value = c2.name;
+    els.cam2NameplateEnabled.checked = c2.nameplateEnabled;
+  }
+
+  els.contentX.addEventListener('input', () => { layout.content.centerX = +els.contentX.value; els.contentXVal.textContent = layout.content.centerX; pushLayout(); });
+  els.contentY.addEventListener('input', () => { layout.content.centerY = +els.contentY.value; els.contentYVal.textContent = layout.content.centerY; pushLayout(); });
+  els.contentScale.addEventListener('input', () => { layout.content.scale = (+els.contentScale.value) / 100; els.contentScaleVal.textContent = els.contentScale.value + '%'; pushLayout(); });
+  els.contentBgEnabled.addEventListener('change', () => { layout.content.bgEnabled = els.contentBgEnabled.checked; pushLayout(); });
+  els.contentBgColor.addEventListener('input', () => { layout.content.bgColor = els.contentBgColor.value; pushLayout(); });
+  els.contentBgOpacity.addEventListener('input', () => { layout.content.bgOpacity = (+els.contentBgOpacity.value) / 100; els.contentBgOpacityVal.textContent = els.contentBgOpacity.value + '%'; pushLayout(); });
+  els.contentRadius.addEventListener('input', () => { layout.content.cornerRadius = +els.contentRadius.value; els.contentRadiusVal.textContent = els.contentRadius.value + 'px'; pushLayout(); });
+  document.getElementById('resetContentBtn').addEventListener('click', () => {
+    layout.content = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.content));
+    reflectLayoutToControls();
+    pushLayout();
+  });
+
+  els.cam1X.addEventListener('input', () => { layout.cam1.centerX = +els.cam1X.value; els.cam1XVal.textContent = layout.cam1.centerX; pushLayout(); });
+  els.cam1Y.addEventListener('input', () => { layout.cam1.centerY = +els.cam1Y.value; els.cam1YVal.textContent = layout.cam1.centerY; pushLayout(); });
+  els.cam1W.addEventListener('input', () => { layout.cam1.width = +els.cam1W.value; els.cam1WVal.textContent = layout.cam1.width; pushLayout(); });
+  els.cam1H.addEventListener('input', () => { layout.cam1.height = +els.cam1H.value; els.cam1HVal.textContent = layout.cam1.height; pushLayout(); });
+  els.cam1R.addEventListener('input', () => { layout.cam1.cornerRadius = +els.cam1R.value; els.cam1RVal.textContent = els.cam1R.value + 'px'; pushLayout(); });
+  els.cam1NameInput.addEventListener('input', () => { layout.cam1.name = els.cam1NameInput.value; pushLayout(); });
+  els.cam1NameplateEnabled.addEventListener('change', () => { layout.cam1.nameplateEnabled = els.cam1NameplateEnabled.checked; pushLayout(); });
+  document.getElementById('resetCam1Btn').addEventListener('click', () => {
+    layout.cam1 = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.cam1));
+    reflectLayoutToControls();
+    pushLayout();
+  });
+
+  els.cam2X.addEventListener('input', () => { layout.cam2.centerX = +els.cam2X.value; els.cam2XVal.textContent = layout.cam2.centerX; pushLayout(); });
+  els.cam2Y.addEventListener('input', () => { layout.cam2.centerY = +els.cam2Y.value; els.cam2YVal.textContent = layout.cam2.centerY; pushLayout(); });
+  els.cam2W.addEventListener('input', () => { layout.cam2.width = +els.cam2W.value; els.cam2WVal.textContent = layout.cam2.width; pushLayout(); });
+  els.cam2H.addEventListener('input', () => { layout.cam2.height = +els.cam2H.value; els.cam2HVal.textContent = layout.cam2.height; pushLayout(); });
+  els.cam2R.addEventListener('input', () => { layout.cam2.cornerRadius = +els.cam2R.value; els.cam2RVal.textContent = els.cam2R.value + 'px'; pushLayout(); });
+  els.cam2NameInput.addEventListener('input', () => { layout.cam2.name = els.cam2NameInput.value; pushLayout(); });
+  els.cam2NameplateEnabled.addEventListener('change', () => { layout.cam2.nameplateEnabled = els.cam2NameplateEnabled.checked; pushLayout(); });
+  document.getElementById('resetCam2Btn').addEventListener('click', () => {
+    layout.cam2 = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.cam2));
+    reflectLayoutToControls();
+    pushLayout();
+  });
+
+  // Load whatever's currently saved (or defaults) once, then reflect it in the sliders.
+  // Uses .once so this page doesn't fight with your own slider drags on every remote update.
+  layoutRef.once('value', (snap) => {
+    const saved = snap.val();
+    if (saved) {
+      layout.content = Object.assign({}, DEFAULT_LAYOUT.content, saved.content);
+      layout.cam1 = Object.assign({}, DEFAULT_LAYOUT.cam1, saved.cam1);
+      layout.cam2 = Object.assign({}, DEFAULT_LAYOUT.cam2, saved.cam2);
+    }
+    reflectLayoutToControls();
+  });
+
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
-    if (document.activeElement === newCardInput || document.activeElement === newSlideInput
-        || document.activeElement === newSlideHeaderInput || document.activeElement === newImageLabel) return;
+    const tag = document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if (e.key === 'ArrowRight') btnNext.click();
     else if (e.key === 'ArrowLeft') btnPrev.click();
     else if (e.key === '1') btnCards.click();
