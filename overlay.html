@@ -122,6 +122,7 @@
     <div class="permissionPrompt" id="cam1Prompt">
       <p>Camera 1 needs access. Right-click this source in OBS &rarr; Interact, then click below.</p>
       <button id="cam1GrantBtn">Enable camera 1</button>
+      <p id="cam1Error" style="color:#ff8080; font-size:11px; margin-top:6px;"></p>
     </div>
   </div>
 
@@ -132,6 +133,7 @@
     <div class="permissionPrompt" id="cam2Prompt">
       <p>Camera 2 needs access. Right-click this source in OBS &rarr; Interact, then click below.</p>
       <button id="cam2GrantBtn">Enable camera 2</button>
+      <p id="cam2Error" style="color:#ff8080; font-size:11px; margin-top:6px;"></p>
     </div>
   </div>
 
@@ -343,8 +345,14 @@
   });
 
   /* ============ Webcams (local devices — not synced via Firebase) ============ */
-  function setupCamera(videoEl, selectEl, promptEl, grantBtnId, storageKey) {
+  function setupCamera(videoEl, selectEl, promptEl, grantBtnId, storageKey, errorElId) {
     let stream = null;
+    const errorEl = document.getElementById(errorElId);
+
+    function showError(err) {
+      if (errorEl) errorEl.textContent = (err && (err.name + ': ' + err.message)) || String(err);
+      promptEl.style.display = 'flex';
+    }
 
     async function start(deviceId) {
       if (stream) stream.getTracks().forEach(t => t.stop());
@@ -352,6 +360,7 @@
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       videoEl.srcObject = stream;
       promptEl.style.display = 'none';
+      if (errorEl) errorEl.textContent = '';
       if (deviceId) localStorage.setItem(storageKey, deviceId);
       await populateDevices();
     }
@@ -371,16 +380,16 @@
     }
 
     selectEl.addEventListener('change', () => {
-      start(selectEl.value).catch(() => { promptEl.style.display = 'flex'; });
+      start(selectEl.value).catch(showError);
     });
 
     document.getElementById(grantBtnId).addEventListener('click', () => {
       const saved = localStorage.getItem(storageKey);
-      start(saved || undefined).catch(() => { promptEl.style.display = 'flex'; });
+      start(saved || undefined).catch(showError);
     });
 
     const saved = localStorage.getItem(storageKey);
-    start(saved || undefined).catch(() => { promptEl.style.display = 'flex'; });
+    start(saved || undefined).catch(showError);
   }
 
   setupCamera(
@@ -388,14 +397,16 @@
     document.getElementById('cam1DeviceSelect'),
     document.getElementById('cam1Prompt'),
     'cam1GrantBtn',
-    'cam1DeviceId'
+    'cam1DeviceId',
+    'cam1Error'
   );
   setupCamera(
     document.getElementById('cam2Video'),
     document.getElementById('cam2DeviceSelect'),
     document.getElementById('cam2Prompt'),
     'cam2GrantBtn',
-    'cam2DeviceId'
+    'cam2DeviceId',
+    'cam2Error'
   );
 </script>
 
