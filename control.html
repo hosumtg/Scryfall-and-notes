@@ -107,6 +107,7 @@
   <button id="btnCards" class="mode">Cards</button>
   <button id="btnSlides" class="mode">Slides</button>
   <button id="btnImages" class="mode">Images</button>
+  <button id="btnPairs" class="mode">Pairs</button>
 </div>
 
 <div class="row">
@@ -124,6 +125,16 @@
   <input id="newCardInput" type="text" placeholder="Card name, e.g. Sol Ring">
   <button id="addCardBtn" class="small">Add card</button>
   <div id="cardListUI" style="margin-top:10px;"></div>
+</div>
+
+<!-- ===== Card pairs editor ===== -->
+<div class="panel">
+  <h2>Card Pairs (side by side)</h2>
+  <input id="newPairHeaderInput" type="text" placeholder="Header (optional), e.g. Combo Piece">
+  <input id="newPairCard1Input" type="text" placeholder="First card name">
+  <input id="newPairCard2Input" type="text" placeholder="Second card name">
+  <button id="addPairBtn" class="small">Add pair</button>
+  <div id="pairListUI" style="margin-top:10px;"></div>
 </div>
 
 <!-- ===== Custom image uploader ===== -->
@@ -202,6 +213,7 @@
 
   <div class="subPanel">
     <h3>Webcam 1</h3>
+    <div class="checkRow"><input id="cam1Enabled" type="checkbox"> Show webcam 1 (leave unchecked to keep this spot blank)</div>
     <input id="cam1NameInput" type="text" placeholder="Name, e.g. Alex">
     <div class="sliderRow">
       <label>Center X <span class="val" id="cam1XVal">1670</span></label>
@@ -229,6 +241,7 @@
 
   <div class="subPanel">
     <h3>Webcam 2</h3>
+    <div class="checkRow"><input id="cam2Enabled" type="checkbox"> Show webcam 2 (leave unchecked to keep this spot blank)</div>
     <input id="cam2NameInput" type="text" placeholder="Name, e.g. Jordan">
     <div class="sliderRow">
       <label>Center X <span class="val" id="cam2XVal">1670</span></label>
@@ -279,6 +292,7 @@
   const cardsRef = db.ref('overlay/cards');
   const slidesRef = db.ref('overlay/slides');
   const imagesRef = db.ref('overlay/images');
+  const pairsRef = db.ref('overlay/pairs');
   const styleRef = db.ref('overlay/style');
   const layoutRef = db.ref('overlay/layout');
 
@@ -287,20 +301,26 @@
   const btnCards = document.getElementById('btnCards');
   const btnSlides = document.getElementById('btnSlides');
   const btnImages = document.getElementById('btnImages');
+  const btnPairs = document.getElementById('btnPairs');
   const btnPrev = document.getElementById('btnPrev');
   const btnNext = document.getElementById('btnNext');
   const btnHide = document.getElementById('btnHide');
   const cardListUI = document.getElementById('cardListUI');
   const slideListUI = document.getElementById('slideListUI');
   const imageListUI = document.getElementById('imageListUI');
+  const pairListUI = document.getElementById('pairListUI');
   const newCardInput = document.getElementById('newCardInput');
   const newSlideInput = document.getElementById('newSlideInput');
   const newSlideHeaderInput = document.getElementById('newSlideHeaderInput');
   const newImageInput = document.getElementById('newImageInput');
   const newImageLabel = document.getElementById('newImageLabel');
+  const newPairHeaderInput = document.getElementById('newPairHeaderInput');
+  const newPairCard1Input = document.getElementById('newPairCard1Input');
+  const newPairCard2Input = document.getElementById('newPairCard2Input');
   const addCardBtn = document.getElementById('addCardBtn');
   const addSlideBtn = document.getElementById('addSlideBtn');
   const addImageBtn = document.getElementById('addImageBtn');
+  const addPairBtn = document.getElementById('addPairBtn');
   const imageUploadStatus = document.getElementById('imageUploadStatus');
   const styleTextColor = document.getElementById('styleTextColor');
   const styleAccentColor = document.getElementById('styleAccentColor');
@@ -313,13 +333,19 @@
     return entry.header || (entry.bullets && entry.bullets[0]) || '';
   }
 
+  function pairLabel(entry) {
+    return entry.header || [entry.card1, entry.card2].filter(Boolean).join(' + ') || 'Pair';
+  }
+
   let mode = 'cards';
   let cardIndex = 0;
   let slideIndex = 0;
   let imageIndex = 0;
+  let pairIndex = 0;
   let CARD_LIST = [];
   let SLIDES = [];
   let IMAGES = [];
+  let PAIRS = [];
 
   db.ref('.info/connected').on('value', (snap) => {
     statusEl.textContent = snap.val() ? 'connected' : 'disconnected — check your config';
@@ -329,30 +355,35 @@
     btnCards.classList.toggle('active', mode === 'cards');
     btnSlides.classList.toggle('active', mode === 'slides');
     btnImages.classList.toggle('active', mode === 'images');
+    btnPairs.classList.toggle('active', mode === 'pairs');
     if (mode === 'cards' && CARD_LIST[cardIndex] !== undefined) {
       previewText.textContent = CARD_LIST[cardIndex] + '  (' + (cardIndex + 1) + '/' + CARD_LIST.length + ')';
     } else if (mode === 'slides' && SLIDES[slideIndex] !== undefined) {
       previewText.textContent = slideLabel(SLIDES[slideIndex]) + '  (' + (slideIndex + 1) + '/' + SLIDES.length + ')';
     } else if (mode === 'images' && IMAGES[imageIndex] !== undefined) {
       previewText.textContent = (IMAGES[imageIndex].label || 'Image') + '  (' + (imageIndex + 1) + '/' + IMAGES.length + ')';
+    } else if (mode === 'pairs' && PAIRS[pairIndex] !== undefined) {
+      previewText.textContent = pairLabel(PAIRS[pairIndex]) + '  (' + (pairIndex + 1) + '/' + PAIRS.length + ')';
     } else {
       previewText.textContent = '—';
     }
   }
 
   function push() {
-    stateRef.set({ mode, cardIndex, slideIndex, imageIndex, ts: Date.now() });
+    stateRef.set({ mode, cardIndex, slideIndex, imageIndex, pairIndex, ts: Date.now() });
     updatePreview();
   }
 
   btnCards.addEventListener('click', () => { mode = 'cards'; push(); });
   btnSlides.addEventListener('click', () => { mode = 'slides'; push(); });
   btnImages.addEventListener('click', () => { mode = 'images'; push(); });
+  btnPairs.addEventListener('click', () => { mode = 'pairs'; push(); });
 
   btnNext.addEventListener('click', () => {
     if (mode === 'cards' && CARD_LIST.length) cardIndex = (cardIndex + 1) % CARD_LIST.length;
     else if (mode === 'slides' && SLIDES.length) slideIndex = (slideIndex + 1) % SLIDES.length;
     else if (mode === 'images' && IMAGES.length) imageIndex = (imageIndex + 1) % IMAGES.length;
+    else if (mode === 'pairs' && PAIRS.length) pairIndex = (pairIndex + 1) % PAIRS.length;
     push();
   });
 
@@ -360,6 +391,7 @@
     if (mode === 'cards' && CARD_LIST.length) cardIndex = (cardIndex - 1 + CARD_LIST.length) % CARD_LIST.length;
     else if (mode === 'slides' && SLIDES.length) slideIndex = (slideIndex - 1 + SLIDES.length) % SLIDES.length;
     else if (mode === 'images' && IMAGES.length) imageIndex = (imageIndex - 1 + IMAGES.length) % IMAGES.length;
+    else if (mode === 'pairs' && PAIRS.length) pairIndex = (pairIndex - 1 + PAIRS.length) % PAIRS.length;
     push();
   });
 
@@ -528,6 +560,44 @@
     });
   }
 
+  // ===== Card pairs editor =====
+  addPairBtn.addEventListener('click', () => {
+    const header = newPairHeaderInput.value.trim();
+    const card1 = newPairCard1Input.value.trim();
+    const card2 = newPairCard2Input.value.trim();
+    if (!card1 && !card2) return;
+    pairsRef.set(PAIRS.concat([{ header, card1, card2 }]));
+    newPairHeaderInput.value = '';
+    newPairCard1Input.value = '';
+    newPairCard2Input.value = '';
+  });
+
+  function renderPairListUI() {
+    pairListUI.innerHTML = '';
+    PAIRS.forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.className = 'listItem' + (mode === 'pairs' && i === pairIndex ? ' current' : '');
+      const label = (entry.header ? '<strong>' + entry.header + '</strong>: ' : '') +
+        [entry.card1, entry.card2].filter(Boolean).join(' + ');
+      row.innerHTML = '<span>' + label + '</span>';
+      const jumpBtn = document.createElement('button');
+      jumpBtn.className = 'small';
+      jumpBtn.textContent = 'Show';
+      jumpBtn.addEventListener('click', () => { mode = 'pairs'; pairIndex = i; push(); });
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        const updated = PAIRS.slice();
+        updated.splice(i, 1);
+        pairsRef.set(updated);
+      });
+      row.appendChild(jumpBtn);
+      row.appendChild(delBtn);
+      pairListUI.appendChild(row);
+    });
+  }
+
   cardsRef.on('value', (snap) => {
     CARD_LIST = snap.val() || [];
     if (cardIndex >= CARD_LIST.length) cardIndex = 0;
@@ -546,6 +616,13 @@
     IMAGES = snap.val() || [];
     if (imageIndex >= IMAGES.length) imageIndex = 0;
     renderImageListUI();
+    updatePreview();
+  });
+
+  pairsRef.on('value', (snap) => {
+    PAIRS = snap.val() || [];
+    if (pairIndex >= PAIRS.length) pairIndex = 0;
+    renderPairListUI();
     updatePreview();
   });
 
@@ -569,8 +646,8 @@
   // ===== Layout controls =====
   const DEFAULT_LAYOUT = {
     content: { centerX: 650, centerY: 540, scale: 1, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 20 },
-    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, cornerRadius: 18 },
-    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, cornerRadius: 18 }
+    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, cornerRadius: 18, enabled: false },
+    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, cornerRadius: 18, enabled: false }
   };
 
   let layout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
@@ -597,6 +674,7 @@
     cam1R: document.getElementById('cam1R'), cam1RVal: document.getElementById('cam1RVal'),
     cam1NameInput: document.getElementById('cam1NameInput'),
     cam1NameplateEnabled: document.getElementById('cam1NameplateEnabled'),
+    cam1Enabled: document.getElementById('cam1Enabled'),
 
     cam2X: document.getElementById('cam2X'), cam2XVal: document.getElementById('cam2XVal'),
     cam2Y: document.getElementById('cam2Y'), cam2YVal: document.getElementById('cam2YVal'),
@@ -604,7 +682,8 @@
     cam2H: document.getElementById('cam2H'), cam2HVal: document.getElementById('cam2HVal'),
     cam2R: document.getElementById('cam2R'), cam2RVal: document.getElementById('cam2RVal'),
     cam2NameInput: document.getElementById('cam2NameInput'),
-    cam2NameplateEnabled: document.getElementById('cam2NameplateEnabled')
+    cam2NameplateEnabled: document.getElementById('cam2NameplateEnabled'),
+    cam2Enabled: document.getElementById('cam2Enabled')
   };
 
   function reflectLayoutToControls() {
@@ -624,6 +703,7 @@
     els.cam1R.value = c1.cornerRadius; els.cam1RVal.textContent = c1.cornerRadius + 'px';
     els.cam1NameInput.value = c1.name;
     els.cam1NameplateEnabled.checked = c1.nameplateEnabled;
+    els.cam1Enabled.checked = !!c1.enabled;
 
     els.cam2X.value = c2.centerX; els.cam2XVal.textContent = c2.centerX;
     els.cam2Y.value = c2.centerY; els.cam2YVal.textContent = c2.centerY;
@@ -632,6 +712,7 @@
     els.cam2R.value = c2.cornerRadius; els.cam2RVal.textContent = c2.cornerRadius + 'px';
     els.cam2NameInput.value = c2.name;
     els.cam2NameplateEnabled.checked = c2.nameplateEnabled;
+    els.cam2Enabled.checked = !!c2.enabled;
   }
 
   els.contentX.addEventListener('input', () => { layout.content.centerX = +els.contentX.value; els.contentXVal.textContent = layout.content.centerX; pushLayout(); });
@@ -654,6 +735,7 @@
   els.cam1R.addEventListener('input', () => { layout.cam1.cornerRadius = +els.cam1R.value; els.cam1RVal.textContent = els.cam1R.value + 'px'; pushLayout(); });
   els.cam1NameInput.addEventListener('input', () => { layout.cam1.name = els.cam1NameInput.value; pushLayout(); });
   els.cam1NameplateEnabled.addEventListener('change', () => { layout.cam1.nameplateEnabled = els.cam1NameplateEnabled.checked; pushLayout(); });
+  els.cam1Enabled.addEventListener('change', () => { layout.cam1.enabled = els.cam1Enabled.checked; pushLayout(); });
   document.getElementById('resetCam1Btn').addEventListener('click', () => {
     layout.cam1 = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.cam1));
     reflectLayoutToControls();
@@ -667,6 +749,7 @@
   els.cam2R.addEventListener('input', () => { layout.cam2.cornerRadius = +els.cam2R.value; els.cam2RVal.textContent = els.cam2R.value + 'px'; pushLayout(); });
   els.cam2NameInput.addEventListener('input', () => { layout.cam2.name = els.cam2NameInput.value; pushLayout(); });
   els.cam2NameplateEnabled.addEventListener('change', () => { layout.cam2.nameplateEnabled = els.cam2NameplateEnabled.checked; pushLayout(); });
+  els.cam2Enabled.addEventListener('change', () => { layout.cam2.enabled = els.cam2Enabled.checked; pushLayout(); });
   document.getElementById('resetCam2Btn').addEventListener('click', () => {
     layout.cam2 = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.cam2));
     reflectLayoutToControls();
@@ -694,6 +777,7 @@
     else if (e.key === '1') btnCards.click();
     else if (e.key === '2') btnSlides.click();
     else if (e.key === '3') btnImages.click();
+    else if (e.key === '4') btnPairs.click();
     else if (e.key === 'Escape') btnHide.click();
   });
 
