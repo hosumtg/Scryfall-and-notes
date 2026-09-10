@@ -179,6 +179,20 @@
   <button id="applyStyleBtn" class="small">Apply style</button>
 </div>
 
+<!-- ===== Background image ===== -->
+<div class="panel">
+  <h2>Background Image</h2>
+  <input id="newBgInput" type="file" accept="image/png, image/jpeg">
+  <button id="setBgBtn" class="small">Set background</button>
+  <div id="bgUploadStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+  <div class="checkRow"><input id="bgEnabled" type="checkbox"> Show background</div>
+  <div class="sliderRow">
+    <label>Blur <span class="val" id="bgBlurVal">0px</span></label>
+    <input id="bgBlur" type="range" min="0" max="40" value="0">
+  </div>
+  <button id="removeBgBtn" class="small">Remove background</button>
+</div>
+
 <!-- ===== Layout: position, size, and style for content + both webcams ===== -->
 <div class="panel">
   <h2>Layout (1920x1080 canvas)</h2>
@@ -418,10 +432,53 @@
       const label = document.createElement('span');
       label.textContent = name;
 
+      const editInput = document.createElement('input');
+      editInput.type = 'text';
+      editInput.value = name;
+      editInput.style.display = 'none';
+      editInput.style.flex = '1';
+      editInput.style.marginRight = '8px';
+      editInput.style.padding = '4px 6px';
+
       const jumpBtn = document.createElement('button');
       jumpBtn.className = 'small';
       jumpBtn.textContent = 'Show';
       jumpBtn.addEventListener('click', () => { mode = 'cards'; cardIndex = i; push(); });
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'small';
+      editBtn.textContent = 'Edit';
+      editBtn.addEventListener('click', () => {
+        const editing = editInput.style.display !== 'none';
+        if (!editing) {
+          label.style.display = 'none';
+          editInput.style.display = 'inline-block';
+          editInput.value = CARD_LIST[i];
+          editInput.focus();
+          editInput.select();
+          editBtn.textContent = 'Save';
+        } else {
+          const newName = editInput.value.trim();
+          if (newName) {
+            const updated = CARD_LIST.slice();
+            updated[i] = newName;
+            cardsRef.set(updated);
+          } else {
+            label.style.display = '';
+            editInput.style.display = 'none';
+            editBtn.textContent = 'Edit';
+          }
+        }
+      });
+      editInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') editBtn.click();
+        if (e.key === 'Escape') {
+          label.style.display = '';
+          editInput.style.display = 'none';
+          editBtn.textContent = 'Edit';
+        }
+      });
+
       const delBtn = document.createElement('button');
       delBtn.className = 'small';
       delBtn.textContent = 'Remove';
@@ -433,7 +490,9 @@
 
       row.appendChild(handle);
       row.appendChild(label);
+      row.appendChild(editInput);
       row.appendChild(jumpBtn);
+      row.appendChild(editBtn);
       row.appendChild(delBtn);
 
       row.addEventListener('dragstart', () => { dragFromIndex = i; row.classList.add('dragging'); });
@@ -533,6 +592,66 @@
       setTimeout(() => { imageUploadStatus.textContent = ''; }, 2000);
     } catch (e) {
       imageUploadStatus.textContent = 'Upload failed: ' + e.message;
+    }
+  });
+
+  // ===== Background image =====
+  const backgroundRef = db.ref('overlay/background');
+  const newBgInput = document.getElementById('newBgInput');
+  const setBgBtn = document.getElementById('setBgBtn');
+  const bgUploadStatus = document.getElementById('bgUploadStatus');
+  const bgEnabled = document.getElementById('bgEnabled');
+  const bgBlur = document.getElementById('bgBlur');
+  const bgBlurVal = document.getElementById('bgBlurVal');
+  const removeBgBtn = document.getElementById('removeBgBtn');
+
+  let backgroundState = { dataUrl: null, blur: 0, enabled: false };
+
+  setBgBtn.addEventListener('click', async () => {
+    const file = newBgInput.files[0];
+    if (!file) { bgUploadStatus.textContent = 'Choose a file first.'; return; }
+    bgUploadStatus.textContent = 'Processing...';
+    try {
+      // Full canvas width so it stays sharp even blurred
+      const dataUrl = await fileToCompressedDataURL(file, 1920, 0.85);
+      backgroundState.dataUrl = dataUrl;
+      backgroundState.enabled = true;
+      bgEnabled.checked = true;
+      backgroundRef.set(backgroundState);
+      newBgInput.value = '';
+      bgUploadStatus.textContent = 'Background set.';
+      setTimeout(() => { bgUploadStatus.textContent = ''; }, 2000);
+    } catch (e) {
+      bgUploadStatus.textContent = 'Upload failed: ' + e.message;
+    }
+  });
+
+  bgEnabled.addEventListener('change', () => {
+    backgroundState.enabled = bgEnabled.checked;
+    backgroundRef.set(backgroundState);
+  });
+
+  bgBlur.addEventListener('input', () => {
+    backgroundState.blur = +bgBlur.value;
+    bgBlurVal.textContent = bgBlur.value + 'px';
+    backgroundRef.set(backgroundState);
+  });
+
+  removeBgBtn.addEventListener('click', () => {
+    backgroundState = { dataUrl: null, blur: 0, enabled: false };
+    bgEnabled.checked = false;
+    bgBlur.value = 0;
+    bgBlurVal.textContent = '0px';
+    backgroundRef.set(backgroundState);
+  });
+
+  backgroundRef.on('value', (snap) => {
+    const saved = snap.val();
+    if (saved) {
+      backgroundState = saved;
+      bgEnabled.checked = !!saved.enabled;
+      bgBlur.value = saved.blur || 0;
+      bgBlurVal.textContent = (saved.blur || 0) + 'px';
     }
   });
 
