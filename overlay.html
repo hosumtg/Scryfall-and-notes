@@ -13,10 +13,24 @@
   }
   #canvas { position: relative; width: 1920px; height: 1080px; }
 
+  #bgLayer {
+    position: absolute; inset: 0;
+    width: 1920px; height: 1080px;
+    overflow: hidden;
+  }
+  #bgLayer img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transform: scale(1.08);
+    filter: blur(var(--bg-blur, 0px));
+  }
+
   /* ===== Content zone (cards / slides / images) ===== */
   #contentZone {
     position: absolute;
     left: 650px; top: 540px;
+    width: max-content;
     transform: translate(-50%, -50%) scale(1);
   }
   #contentInner {
@@ -115,6 +129,8 @@
 <body>
 
 <div id="canvas">
+
+  <div id="bgLayer" style="display:none;"><img id="bgImage" src="" alt=""></div>
 
   <div id="contentZone">
     <div id="contentInner">
@@ -367,6 +383,21 @@
     root.setProperty('--slide-font-family', style.fontFamily || "'Segoe UI', Arial, sans-serif");
     root.setProperty('--slide-font-weight', style.bold ? '700' : '400');
   });
+
+  /* ============ Background image ============ */
+  const bgLayer = document.getElementById('bgLayer');
+  const bgImage = document.getElementById('bgImage');
+  db.ref('overlay/background').on('value', (snap) => {
+    const bg = snap.val();
+    if (bg && bg.enabled && bg.dataUrl) {
+      bgImage.src = bg.dataUrl;
+      document.documentElement.style.setProperty('--bg-blur', (bg.blur || 0) + 'px');
+      bgLayer.style.display = 'block';
+    } else {
+      bgLayer.style.display = 'none';
+    }
+  });
+
   db.ref('overlay/state').on('value', (snap) => {
     currentState = snap.val();
     renderCurrent();
