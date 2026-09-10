@@ -32,6 +32,18 @@
   #cardLoading { color: #f4c04a; font-size: 20px; text-align: center; padding: 20px 0; }
   #customImg { display: block; max-width: 480px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
 
+  #pairHeader {
+    color: var(--slide-accent-color);
+    font-family: var(--slide-font-family);
+    font-size: 32px; font-weight: 700;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  #pairCards { display: flex; gap: 24px; align-items: flex-start; justify-content: center; }
+  .pairSlot { display: flex; flex-direction: column; align-items: center; }
+  #pairCards img { display: block; max-width: 320px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
+  .pairLoading { color: #f4c04a; font-size: 18px; text-align: center; padding: 20px; width: 320px; }
+
   :root {
     --slide-text-color: #ffffff;
     --slide-accent-color: #f4c04a;
@@ -112,6 +124,19 @@
         <ul id="bulletList"></ul>
       </div>
       <div id="imageWrap" style="display:none;"><img id="customImg" src="" alt="Uploaded image"></div>
+      <div id="pairWrap" style="display:none;">
+        <div id="pairHeader" style="display:none;"></div>
+        <div id="pairCards">
+          <div class="pairSlot">
+            <img id="pairImg1" src="" alt="Magic card 1">
+            <div id="pairLoading1" class="pairLoading" style="display:none;"></div>
+          </div>
+          <div class="pairSlot">
+            <img id="pairImg2" src="" alt="Magic card 2">
+            <div id="pairLoading2" class="pairLoading" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -170,10 +195,18 @@
   const slideHeader = document.getElementById('slideHeader');
   const imageWrap = document.getElementById('imageWrap');
   const customImg = document.getElementById('customImg');
+  const pairWrap = document.getElementById('pairWrap');
+  const pairHeader = document.getElementById('pairHeader');
+  const pairCards = document.getElementById('pairCards');
+  const pairImg1 = document.getElementById('pairImg1');
+  const pairImg2 = document.getElementById('pairImg2');
+  const pairLoading1 = document.getElementById('pairLoading1');
+  const pairLoading2 = document.getElementById('pairLoading2');
 
   let CARD_LIST = [];
   let SLIDES = [];
   let IMAGES = [];
+  let PAIRS = [];
   let currentState = null;
 
   const cardImageCache = {};
@@ -207,6 +240,7 @@
     cardWrap.style.display = 'block';
     bulletWrap.style.display = 'none';
     imageWrap.style.display = 'none';
+    pairWrap.style.display = 'none';
     showContent();
     try {
       const img = await fetchCardImage(name);
@@ -229,6 +263,7 @@
     cardWrap.style.display = 'none';
     bulletWrap.style.display = 'block';
     imageWrap.style.display = 'none';
+    pairWrap.style.display = 'none';
 
     if (header) {
       slideHeader.textContent = header;
@@ -253,8 +288,45 @@
     cardWrap.style.display = 'none';
     bulletWrap.style.display = 'none';
     imageWrap.style.display = 'block';
+    pairWrap.style.display = 'none';
     customImg.src = entry.dataUrl;
     showContent();
+  }
+
+  async function renderPair(index) {
+    const entry = PAIRS[index];
+    if (!entry) { hideContent(); return; }
+    cardWrap.style.display = 'none';
+    bulletWrap.style.display = 'none';
+    imageWrap.style.display = 'none';
+    pairWrap.style.display = 'block';
+
+    if (entry.header) {
+      pairHeader.textContent = entry.header;
+      pairHeader.style.display = 'block';
+    } else {
+      pairHeader.style.display = 'none';
+    }
+
+    showContent();
+
+    async function loadInto(imgEl, loadingEl, name) {
+      if (!name) { imgEl.style.display = 'none'; loadingEl.style.display = 'none'; return; }
+      imgEl.style.display = 'block';
+      loadingEl.style.display = 'none';
+      try {
+        imgEl.src = await fetchCardImage(name);
+      } catch (e) {
+        imgEl.style.display = 'none';
+        loadingEl.textContent = 'Card not found: ' + name;
+        loadingEl.style.display = 'block';
+      }
+    }
+
+    await Promise.all([
+      loadInto(pairImg1, pairLoading1, entry.card1),
+      loadInto(pairImg2, pairLoading2, entry.card2)
+    ]);
   }
 
   function renderCurrent() {
@@ -262,12 +334,21 @@
     if (currentState.mode === 'cards') renderCard(currentState.cardIndex || 0);
     else if (currentState.mode === 'slides') renderSlide(currentState.slideIndex || 0);
     else if (currentState.mode === 'images') renderImage(currentState.imageIndex || 0);
+    else if (currentState.mode === 'pairs') renderPair(currentState.pairIndex || 0);
     else if (currentState.mode === 'clear') hideContent();
   }
 
   db.ref('overlay/cards').on('value', (snap) => {
     CARD_LIST = snap.val() || [];
     preloadNewCards(CARD_LIST);
+    renderCurrent();
+  });
+
+  db.ref('overlay/pairs').on('value', (snap) => {
+    PAIRS = snap.val() || [];
+    const names = [];
+    PAIRS.forEach(p => { if (p.card1) names.push(p.card1); if (p.card2) names.push(p.card2); });
+    preloadNewCards(names);
     renderCurrent();
   });
   db.ref('overlay/slides').on('value', (snap) => {
@@ -294,8 +375,8 @@
   /* ============ Layout (position / size / style for everything) ============ */
   const DEFAULT_LAYOUT = {
     content: { centerX: 650, centerY: 540, scale: 1, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 20 },
-    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, cornerRadius: 18 },
-    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, cornerRadius: 18 }
+    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, cornerRadius: 18, enabled: false },
+    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, cornerRadius: 18, enabled: false }
   };
 
   const cam1Box = document.getElementById('cam1Box');
@@ -327,6 +408,7 @@
     cam1Box.style.width = c1.width + 'px';
     cam1Box.style.height = c1.height + 'px';
     cam1Box.style.borderRadius = c1.cornerRadius + 'px';
+    cam1Box.style.display = c1.enabled ? 'block' : 'none';
     cam1Name.style.display = c1.nameplateEnabled ? 'block' : 'none';
     cam1Name.textContent = c1.name;
 
@@ -335,6 +417,7 @@
     cam2Box.style.width = c2.width + 'px';
     cam2Box.style.height = c2.height + 'px';
     cam2Box.style.borderRadius = c2.cornerRadius + 'px';
+    cam2Box.style.display = c2.enabled ? 'block' : 'none';
     cam2Name.style.display = c2.nameplateEnabled ? 'block' : 'none';
     cam2Name.textContent = c2.name;
   }
@@ -388,8 +471,10 @@
       start(saved || undefined).catch(showError);
     });
 
-    const saved = localStorage.getItem(storageKey);
-    start(saved || undefined).catch(showError);
+    // Note: we deliberately do NOT auto-request the camera on page load.
+    // OBS's embedded browser silently denies permission requests that happen
+    // outside of Interact mode, and that denial can get cached — so we wait
+    // for an explicit button click instead, which is a real user gesture.
   }
 
   setupCamera(
