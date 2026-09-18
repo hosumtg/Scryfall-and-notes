@@ -58,6 +58,17 @@
   #pairCards img { display: block; max-width: 320px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
   .pairLoading { color: #f4c04a; font-size: 18px; text-align: center; padding: 20px; width: 320px; }
 
+  #groupHeader {
+    color: var(--slide-accent-color);
+    font-family: var(--slide-font-family);
+    font-size: 32px; font-weight: 700;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  #groupCardsRow { display: flex; gap: 20px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+  .groupCardImg { display: block; max-width: 280px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
+  .groupCardLoading { color: #f4c04a; font-size: 16px; text-align: center; padding: 16px; width: 280px; }
+
   /* ===== Secondary card slot (always-on, shows however many cards you add) ===== */
   #secondaryZone {
     position: absolute;
@@ -153,6 +164,10 @@
           </div>
         </div>
       </div>
+      <div id="groupWrap" style="display:none;">
+        <div id="groupHeader" style="display:none;"></div>
+        <div id="groupCardsRow"></div>
+      </div>
     </div>
   </div>
 
@@ -208,6 +223,9 @@
   const pairImg2 = document.getElementById('pairImg2');
   const pairLoading1 = document.getElementById('pairLoading1');
   const pairLoading2 = document.getElementById('pairLoading2');
+  const groupWrap = document.getElementById('groupWrap');
+  const groupHeader = document.getElementById('groupHeader');
+  const groupCardsRow = document.getElementById('groupCardsRow');
   const secondaryZone = document.getElementById('secondaryZone');
   const secondaryInner = document.getElementById('secondaryInner');
 
@@ -257,13 +275,24 @@
   function showContent() { contentInner.classList.add('visible'); }
   function hideContent() { contentInner.classList.remove('visible'); }
 
+  function isGroupEntry(entry) {
+    return entry && typeof entry === 'object' && Array.isArray(entry.cards);
+  }
+
   async function renderCard(index) {
     const entry = CARD_LIST[index];
     if (!entry) { hideContent(); return; }
+
+    if (isGroupEntry(entry)) {
+      await renderGroup(entry);
+      return;
+    }
+
     cardWrap.style.display = 'block';
     bulletWrap.style.display = 'none';
     imageWrap.style.display = 'none';
     pairWrap.style.display = 'none';
+    groupWrap.style.display = 'none';
     showContent();
     try {
       const img = await fetchCardImage(entry);
@@ -277,6 +306,54 @@
     }
   }
 
+  async function renderGroup(entry) {
+    cardWrap.style.display = 'none';
+    bulletWrap.style.display = 'none';
+    imageWrap.style.display = 'none';
+    pairWrap.style.display = 'none';
+    groupWrap.style.display = 'block';
+
+    if (entry.header) {
+      groupHeader.textContent = entry.header;
+      groupHeader.style.display = 'block';
+    } else {
+      groupHeader.style.display = 'none';
+    }
+
+    groupCardsRow.innerHTML = '';
+    const slots = entry.cards.map(() => {
+      const wrap = document.createElement('div');
+      const img = document.createElement('img');
+      img.className = 'groupCardImg';
+      const loading = document.createElement('div');
+      loading.className = 'groupCardLoading';
+      loading.style.display = 'none';
+      wrap.appendChild(img);
+      wrap.appendChild(loading);
+      groupCardsRow.appendChild(wrap);
+      return { img, loading };
+    });
+
+    showContent();
+
+    await Promise.all(entry.cards.map(async (cardEntry, i) => {
+      const { img, loading } = slots[i];
+      if (!cardEntry || (typeof cardEntry === 'object' && !cardEntry.name && !(cardEntry.set && cardEntry.number))) {
+        img.style.display = 'none';
+        loading.textContent = 'Empty or invalid card entry in this group';
+        loading.style.display = 'block';
+        return;
+      }
+      try {
+        img.src = await fetchCardImage(cardEntry);
+      } catch (e) {
+        img.style.display = 'none';
+        loading.textContent = 'Card not found: ' + cardDisplayName(cardEntry);
+        loading.style.display = 'block';
+      }
+    }));
+  }
+
   function renderSlide(index) {
     const entry = SLIDES[index];
     if (!entry) { hideContent(); return; }
@@ -287,6 +364,7 @@
     bulletWrap.style.display = 'block';
     imageWrap.style.display = 'none';
     pairWrap.style.display = 'none';
+    groupWrap.style.display = 'none';
 
     if (header) {
       slideHeader.textContent = header;
@@ -312,6 +390,7 @@
     bulletWrap.style.display = 'none';
     imageWrap.style.display = 'block';
     pairWrap.style.display = 'none';
+    groupWrap.style.display = 'none';
     customImg.src = entry.dataUrl;
     showContent();
   }
@@ -323,6 +402,7 @@
     bulletWrap.style.display = 'none';
     imageWrap.style.display = 'none';
     pairWrap.style.display = 'block';
+    groupWrap.style.display = 'none';
 
     if (entry.header) {
       pairHeader.textContent = entry.header;
@@ -363,7 +443,13 @@
 
   db.ref('overlay/cards').on('value', (snap) => {
     CARD_LIST = snap.val() || [];
-    preloadNewCards(CARD_LIST);
+    // Flatten group entries so nested cards get preloaded too, not just top-level ones.
+    const flat = [];
+    CARD_LIST.forEach(entry => {
+      if (isGroupEntry(entry)) flat.push(...entry.cards);
+      else flat.push(entry);
+    });
+    preloadNewCards(flat);
     renderCurrent();
   });
 
