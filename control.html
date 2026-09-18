@@ -122,15 +122,54 @@
 <!-- ===== Card list editor ===== -->
 <div class="panel">
   <h2>Cards</h2>
-  <input id="newCardInput" type="text" placeholder="Card name, e.g. Sol Ring">
-  <button id="addCardBtn" class="small">Add card</button>
 
-  <div class="subPanel">
-    <h3>Or add by set + collector number</h3>
-    <select id="setSelect"><option>Loading sets...</option></select>
-    <input id="newCardNumberInput" type="text" placeholder="Collector number, e.g. 142">
-    <button id="addCardByNumberBtn" class="small">Add by number</button>
-    <div id="cardByNumberStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+  <div class="row" style="justify-content:flex-start; margin-bottom:14px;">
+    <button id="cardAddModeSingle" class="small mode active">Single card</button>
+    <button id="cardAddModeGroup" class="small mode">Card group</button>
+  </div>
+
+  <div id="cardAddSingleForm">
+    <input id="newCardInput" type="text" placeholder="Card name, e.g. Sol Ring">
+    <button id="addCardBtn" class="small">Add card</button>
+
+    <div class="subPanel">
+      <h3>Or add by set + collector number</h3>
+      <select id="setSelect"><option>Loading sets...</option></select>
+      <input id="newCardNumberInput" type="text" placeholder="Collector number, e.g. 142">
+      <button id="addCardByNumberBtn" class="small">Add by number</button>
+      <div id="cardByNumberStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+
+      <h3>Or paste a list of numbers (same set, one per line)</h3>
+      <textarea id="bulkCardNumbers" rows="4" placeholder="142&#10;143&#10;144"></textarea>
+      <button id="addBulkCardsBtn" class="small">Add all</button>
+      <div id="bulkCardStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+    </div>
+  </div>
+
+  <div id="cardAddGroupForm" style="display:none;">
+    <p style="font-size:12px; color:#999; margin:0 0 10px;">Build a group of cards that all show together at once, with a shared header. When you're done adding cards to it, click "Save group" to add it to the list below as one entry.</p>
+    <input id="newGroupHeaderInput" type="text" placeholder="Header (optional), e.g. Combo Package">
+
+    <input id="newGroupCardInput" type="text" placeholder="Card name, e.g. Sol Ring">
+    <button id="addToGroupBtn" class="small">Add card to group</button>
+
+    <div class="subPanel">
+      <h3>Or add to group by set + collector number</h3>
+      <select id="groupSetSelect"><option>Loading sets...</option></select>
+      <input id="newGroupCardNumberInput" type="text" placeholder="Collector number, e.g. 142">
+      <button id="addToGroupByNumberBtn" class="small">Add to group by number</button>
+      <div id="groupByNumberStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+
+      <h3>Or paste a list of numbers (same set, one per line)</h3>
+      <textarea id="bulkGroupCardNumbers" rows="4" placeholder="142&#10;143&#10;144"></textarea>
+      <button id="addBulkGroupCardsBtn" class="small">Add all to group</button>
+      <div id="bulkGroupCardStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+    </div>
+
+    <h3>Cards in this group</h3>
+    <div id="pendingGroupListUI"></div>
+    <button id="saveGroupBtn" class="small">Save group</button>
+    <button id="clearGroupBtn" class="small danger">Clear group</button>
   </div>
 
   <div id="cardListUI" style="margin-top:10px;"></div>
@@ -149,6 +188,11 @@
     <input id="newSecondaryCardNumberInput" type="text" placeholder="Collector number, e.g. 142">
     <button id="addSecondaryCardByNumberBtn" class="small">Add by number</button>
     <div id="secondaryCardByNumberStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+
+    <h3>Or paste a list of numbers (same set, one per line)</h3>
+    <textarea id="bulkSecondaryCardNumbers" rows="4" placeholder="142&#10;143&#10;144"></textarea>
+    <button id="addBulkSecondaryCardsBtn" class="small">Add all</button>
+    <div id="bulkSecondaryCardStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
   </div>
 
   <div id="secondaryCardListUI" style="margin-top:10px;"></div>
@@ -431,6 +475,10 @@
 
   function cardLabel(entry) {
     if (typeof entry === 'string') return entry;
+    if (Array.isArray(entry.cards)) {
+      const names = entry.cards.map(cardLabel).join(', ');
+      return (entry.header ? '[Group] ' + entry.header + ': ' : '[Group] ') + names;
+    }
     return (entry.name || 'Unknown card') + '  (' + entry.set.toUpperCase() + ' #' + entry.number + ')';
   }
 
@@ -613,8 +661,9 @@
   const addCardByNumberBtn = document.getElementById('addCardByNumberBtn');
   const cardByNumberStatus = document.getElementById('cardByNumberStatus');
   const secondarySetSelect = document.getElementById('secondarySetSelect');
+  const groupSetSelect = document.getElementById('groupSetSelect');
 
-  // Populate both set dropdowns live from Scryfall so they're always current —
+  // Populate all set dropdowns live from Scryfall so they're always current —
   // no hardcoded set list to go stale.
   fetch('https://api.scryfall.com/sets')
     .then(res => res.json())
@@ -622,7 +671,7 @@
       const sets = (data.data || [])
         .filter(s => s.code && s.name)
         .sort((a, b) => (b.released_at || '').localeCompare(a.released_at || ''));
-      [setSelect, secondarySetSelect].forEach(sel => {
+      [setSelect, secondarySetSelect, groupSetSelect].forEach(sel => {
         sel.innerHTML = '';
         sets.forEach(s => {
           const opt = document.createElement('option');
@@ -633,9 +682,33 @@
       });
     })
     .catch(() => {
-      setSelect.innerHTML = '<option>Could not load sets</option>';
-      secondarySetSelect.innerHTML = '<option>Could not load sets</option>';
+      [setSelect, secondarySetSelect, groupSetSelect].forEach(sel => {
+        sel.innerHTML = '<option>Could not load sets</option>';
+      });
     });
+
+  // Shared helper: fetch a list of cards from one set, given collector numbers one per line.
+  // Returns { entries, failed } — entries is in the same order the numbers were pasted.
+  async function fetchCardsBulk(set, numbersText, statusEl) {
+    const numbers = numbersText.split('\n').map(s => s.trim()).filter(Boolean);
+    const entries = [];
+    const failed = [];
+    for (let i = 0; i < numbers.length; i++) {
+      const number = numbers[i];
+      if (statusEl) statusEl.textContent = 'Looking up ' + (i + 1) + ' of ' + numbers.length + '...';
+      try {
+        const res = await fetch('https://api.scryfall.com/cards/' + encodeURIComponent(set) + '/' + encodeURIComponent(number));
+        if (!res.ok) throw new Error('not found');
+        const data = await res.json();
+        entries.push({ set, number, name: data.name });
+      } catch (e) {
+        failed.push(number);
+      }
+      // Small delay to stay well within Scryfall's rate limit guidance
+      await new Promise(r => setTimeout(r, 80));
+    }
+    return { entries, failed };
+  }
 
   addCardByNumberBtn.addEventListener('click', async () => {
     const set = setSelect.value;
@@ -655,6 +728,131 @@
     }
   });
   newCardNumberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCardByNumberBtn.click(); });
+
+  // Bulk paste — main Cards list
+  const bulkCardNumbers = document.getElementById('bulkCardNumbers');
+  const addBulkCardsBtn = document.getElementById('addBulkCardsBtn');
+  const bulkCardStatus = document.getElementById('bulkCardStatus');
+  addBulkCardsBtn.addEventListener('click', async () => {
+    const set = setSelect.value;
+    if (!set || !bulkCardNumbers.value.trim()) { bulkCardStatus.textContent = 'Pick a set and paste some numbers.'; return; }
+    addBulkCardsBtn.disabled = true;
+    const { entries, failed } = await fetchCardsBulk(set, bulkCardNumbers.value, bulkCardStatus);
+    if (entries.length) cardsRef.set(CARD_LIST.concat(entries));
+    bulkCardStatus.textContent = 'Added ' + entries.length + ' card(s).' + (failed.length ? ' Not found: ' + failed.join(', ') : '');
+    if (entries.length) bulkCardNumbers.value = '';
+    addBulkCardsBtn.disabled = false;
+  });
+
+  // ===== Card group builder (single header + multi-card, added as one entry) =====
+  const cardAddModeSingle = document.getElementById('cardAddModeSingle');
+  const cardAddModeGroup = document.getElementById('cardAddModeGroup');
+  const cardAddSingleForm = document.getElementById('cardAddSingleForm');
+  const cardAddGroupForm = document.getElementById('cardAddGroupForm');
+  const newGroupHeaderInput = document.getElementById('newGroupHeaderInput');
+  const newGroupCardInput = document.getElementById('newGroupCardInput');
+  const addToGroupBtn = document.getElementById('addToGroupBtn');
+  const newGroupCardNumberInput = document.getElementById('newGroupCardNumberInput');
+  const addToGroupByNumberBtn = document.getElementById('addToGroupByNumberBtn');
+  const groupByNumberStatus = document.getElementById('groupByNumberStatus');
+  const pendingGroupListUI = document.getElementById('pendingGroupListUI');
+  const saveGroupBtn = document.getElementById('saveGroupBtn');
+  const clearGroupBtn = document.getElementById('clearGroupBtn');
+
+  let pendingGroupCards = [];
+
+  cardAddModeSingle.addEventListener('click', () => {
+    cardAddModeSingle.classList.add('active');
+    cardAddModeGroup.classList.remove('active');
+    cardAddSingleForm.style.display = '';
+    cardAddGroupForm.style.display = 'none';
+  });
+  cardAddModeGroup.addEventListener('click', () => {
+    cardAddModeGroup.classList.add('active');
+    cardAddModeSingle.classList.remove('active');
+    cardAddGroupForm.style.display = '';
+    cardAddSingleForm.style.display = 'none';
+  });
+
+  function renderPendingGroupListUI() {
+    pendingGroupListUI.innerHTML = '';
+    pendingGroupCards.forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.className = 'listItem';
+      const label = document.createElement('span');
+      label.textContent = cardLabel(entry);
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        pendingGroupCards.splice(i, 1);
+        renderPendingGroupListUI();
+      });
+      row.appendChild(label);
+      row.appendChild(delBtn);
+      pendingGroupListUI.appendChild(row);
+    });
+  }
+
+  addToGroupBtn.addEventListener('click', () => {
+    const name = newGroupCardInput.value.trim();
+    if (!name) return;
+    pendingGroupCards.push(name);
+    newGroupCardInput.value = '';
+    renderPendingGroupListUI();
+  });
+  newGroupCardInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addToGroupBtn.click(); });
+
+  addToGroupByNumberBtn.addEventListener('click', async () => {
+    const set = groupSetSelect.value;
+    const number = newGroupCardNumberInput.value.trim();
+    if (!set || !number) { groupByNumberStatus.textContent = 'Pick a set and enter a number.'; return; }
+    groupByNumberStatus.textContent = 'Looking up...';
+    try {
+      const res = await fetch('https://api.scryfall.com/cards/' + encodeURIComponent(set) + '/' + encodeURIComponent(number));
+      if (!res.ok) throw new Error('Card not found');
+      const data = await res.json();
+      pendingGroupCards.push({ set, number, name: data.name });
+      newGroupCardNumberInput.value = '';
+      groupByNumberStatus.textContent = 'Added: ' + data.name;
+      setTimeout(() => { groupByNumberStatus.textContent = ''; }, 2000);
+      renderPendingGroupListUI();
+    } catch (e) {
+      groupByNumberStatus.textContent = 'Not found. Check the set and number.';
+    }
+  });
+  newGroupCardNumberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addToGroupByNumberBtn.click(); });
+
+  // Bulk paste — into the pending group
+  const bulkGroupCardNumbers = document.getElementById('bulkGroupCardNumbers');
+  const addBulkGroupCardsBtn = document.getElementById('addBulkGroupCardsBtn');
+  const bulkGroupCardStatus = document.getElementById('bulkGroupCardStatus');
+  addBulkGroupCardsBtn.addEventListener('click', async () => {
+    const set = groupSetSelect.value;
+    if (!set || !bulkGroupCardNumbers.value.trim()) { bulkGroupCardStatus.textContent = 'Pick a set and paste some numbers.'; return; }
+    addBulkGroupCardsBtn.disabled = true;
+    const { entries, failed } = await fetchCardsBulk(set, bulkGroupCardNumbers.value, bulkGroupCardStatus);
+    pendingGroupCards.push(...entries);
+    renderPendingGroupListUI();
+    bulkGroupCardStatus.textContent = 'Added ' + entries.length + ' card(s) to group.' + (failed.length ? ' Not found: ' + failed.join(', ') : '');
+    if (entries.length) bulkGroupCardNumbers.value = '';
+    addBulkGroupCardsBtn.disabled = false;
+  });
+
+  saveGroupBtn.addEventListener('click', () => {
+    if (!pendingGroupCards.length) return;
+    const header = newGroupHeaderInput.value.trim();
+    cardsRef.set(CARD_LIST.concat([{ header, cards: pendingGroupCards.slice() }]));
+    pendingGroupCards = [];
+    newGroupHeaderInput.value = '';
+    renderPendingGroupListUI();
+  });
+
+  clearGroupBtn.addEventListener('click', () => {
+    pendingGroupCards = [];
+    newGroupHeaderInput.value = '';
+    renderPendingGroupListUI();
+  });
 
   // ===== Secondary card slot editor =====
   // Always-visible list, independent of the main Cards/Slides/Images/Pairs mode —
@@ -740,6 +938,21 @@
     }
   });
   newSecondaryCardNumberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addSecondaryCardByNumberBtn.click(); });
+
+  // Bulk paste — Secondary Card Slot
+  const bulkSecondaryCardNumbers = document.getElementById('bulkSecondaryCardNumbers');
+  const addBulkSecondaryCardsBtn = document.getElementById('addBulkSecondaryCardsBtn');
+  const bulkSecondaryCardStatus = document.getElementById('bulkSecondaryCardStatus');
+  addBulkSecondaryCardsBtn.addEventListener('click', async () => {
+    const set = secondarySetSelect.value;
+    if (!set || !bulkSecondaryCardNumbers.value.trim()) { bulkSecondaryCardStatus.textContent = 'Pick a set and paste some numbers.'; return; }
+    addBulkSecondaryCardsBtn.disabled = true;
+    const { entries, failed } = await fetchCardsBulk(set, bulkSecondaryCardNumbers.value, bulkSecondaryCardStatus);
+    if (entries.length) secondaryCardsRef.set(SECONDARY_CARD_LIST.concat(entries));
+    bulkSecondaryCardStatus.textContent = 'Added ' + entries.length + ' card(s).' + (failed.length ? ' Not found: ' + failed.join(', ') : '');
+    if (entries.length) bulkSecondaryCardNumbers.value = '';
+    addBulkSecondaryCardsBtn.disabled = false;
+  });
 
   secondaryCardsRef.on('value', (snap) => {
     SECONDARY_CARD_LIST = snap.val() || [];
