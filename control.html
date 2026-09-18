@@ -148,6 +148,7 @@
 
   <div id="cardAddGroupForm" style="display:none;">
     <p style="font-size:12px; color:#999; margin:0 0 10px;">Build a group of cards that all show together at once, with a shared header. When you're done adding cards to it, click "Save group" to add it to the list below as one entry.</p>
+    <p id="groupEditingNotice" style="display:none; font-size:12px; color:#f4c04a; margin:0 0 10px;">Editing an existing group — "Update group" will save changes in place.</p>
     <input id="newGroupHeaderInput" type="text" placeholder="Header (optional), e.g. Combo Package">
 
     <input id="newGroupCardInput" type="text" placeholder="Card name, e.g. Sol Ring">
@@ -584,6 +585,7 @@
 
       // Editing in place only makes sense for plain name entries —
       // set+number entries are re-added via the picker if they need to change.
+      const isGroup = entry && typeof entry === 'object' && Array.isArray(entry.cards);
       if (!isObj) {
         const editBtn = document.createElement('button');
         editBtn.className = 'small';
@@ -619,7 +621,23 @@
           }
         });
         row.appendChild(editBtn);
+      } else if (isGroup) {
+        const editGroupBtn = document.createElement('button');
+        editGroupBtn.className = 'small';
+        editGroupBtn.textContent = 'Edit group';
+        editGroupBtn.addEventListener('click', () => {
+          cardAddModeGroup.click();
+          newGroupHeaderInput.value = entry.header || '';
+          pendingGroupCards = (entry.cards || []).slice();
+          editingGroupIndex = i;
+          saveGroupBtn.textContent = 'Update group';
+          document.getElementById('groupEditingNotice').style.display = 'block';
+          renderPendingGroupListUI();
+          newGroupHeaderInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        row.appendChild(editGroupBtn);
       }
+
 
       const delBtn = document.createElement('button');
       delBtn.className = 'small';
@@ -760,6 +778,7 @@
   const clearGroupBtn = document.getElementById('clearGroupBtn');
 
   let pendingGroupCards = [];
+  let editingGroupIndex = null;
 
   cardAddModeSingle.addEventListener('click', () => {
     cardAddModeSingle.classList.add('active');
@@ -842,15 +861,28 @@
   saveGroupBtn.addEventListener('click', () => {
     if (!pendingGroupCards.length) return;
     const header = newGroupHeaderInput.value.trim();
-    cardsRef.set(CARD_LIST.concat([{ header, cards: pendingGroupCards.slice() }]));
+    const groupEntry = { header, cards: pendingGroupCards.slice() };
+    if (editingGroupIndex !== null) {
+      const updated = CARD_LIST.slice();
+      updated[editingGroupIndex] = groupEntry;
+      cardsRef.set(updated);
+    } else {
+      cardsRef.set(CARD_LIST.concat([groupEntry]));
+    }
     pendingGroupCards = [];
+    editingGroupIndex = null;
     newGroupHeaderInput.value = '';
+    saveGroupBtn.textContent = 'Save group';
+    document.getElementById('groupEditingNotice').style.display = 'none';
     renderPendingGroupListUI();
   });
 
   clearGroupBtn.addEventListener('click', () => {
     pendingGroupCards = [];
+    editingGroupIndex = null;
     newGroupHeaderInput.value = '';
+    saveGroupBtn.textContent = 'Save group';
+    document.getElementById('groupEditingNotice').style.display = 'none';
     renderPendingGroupListUI();
   });
 
