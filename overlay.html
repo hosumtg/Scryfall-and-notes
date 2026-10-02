@@ -65,7 +65,8 @@
     text-align: center;
     margin-bottom: 14px;
   }
-  #groupCardsRow { display: flex; gap: 20px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+  #groupCardsRow { display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center; }
+  .groupCardsRowLine { display: flex; gap: 20px; align-items: flex-start; justify-content: center; }
   .groupCardImg { display: block; max-width: 280px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
   .groupCardLoading { color: #f4c04a; font-size: 16px; text-align: center; padding: 16px; width: 280px; }
 
@@ -124,16 +125,14 @@
     box-sizing: border-box;
     background: transparent;
   }
-  .camBox .namePlate {
+  .namePlate {
     position: absolute;
-    left: 10px; bottom: 10px;
-    background: rgba(10, 12, 20, 0.82);
+    transform: translate(-50%, 0);
     border-radius: 8px;
-    padding: 4px 12px;
-    color: #fff;
-    font-size: 16px;
+    padding: 4px 14px;
     font-weight: 600;
     letter-spacing: 0.3px;
+    white-space: nowrap;
   }
 </style>
 </head>
@@ -175,13 +174,11 @@
     <div id="secondaryInner"></div>
   </div>
 
-  <div id="cam1Box" class="camBox">
-    <div class="namePlate" id="cam1Name"></div>
-  </div>
+  <div id="cam1Box" class="camBox"></div>
+  <div class="namePlate" id="cam1Name"></div>
 
-  <div id="cam2Box" class="camBox">
-    <div class="namePlate" id="cam2Name"></div>
-  </div>
+  <div id="cam2Box" class="camBox"></div>
+  <div class="namePlate" id="cam2Name"></div>
 
 </div>
 
@@ -279,6 +276,21 @@
     return entry && typeof entry === 'object' && Array.isArray(entry.cards);
   }
 
+  // Splits a group's card count into evenly-sized rows:
+  // 1-4 cards -> one row. 4-6 -> two rows (5 => 2+3, 6 => 3+3).
+  // 7-9 -> three rows (7 => 2+2+3, 8 => 2+3+3, 9 => 3+3+3).
+  function splitIntoRows(n) {
+    if (n <= 4) return [n];
+    const rows = n < 7 ? 2 : 3;
+    const base = Math.floor(n / rows);
+    const extra = n % rows;
+    const sizes = [];
+    for (let i = 0; i < rows; i++) {
+      sizes.push(base + (i >= rows - extra ? 1 : 0));
+    }
+    return sizes;
+  }
+
   async function renderCard(index) {
     const entry = CARD_LIST[index];
     if (!entry) { hideContent(); return; }
@@ -321,17 +333,24 @@
     }
 
     groupCardsRow.innerHTML = '';
-    const slots = entry.cards.map(() => {
-      const wrap = document.createElement('div');
-      const img = document.createElement('img');
-      img.className = 'groupCardImg';
-      const loading = document.createElement('div');
-      loading.className = 'groupCardLoading';
-      loading.style.display = 'none';
-      wrap.appendChild(img);
-      wrap.appendChild(loading);
-      groupCardsRow.appendChild(wrap);
-      return { img, loading };
+    const rowSizes = splitIntoRows(entry.cards.length);
+    const slots = [];
+    rowSizes.forEach(size => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'groupCardsRowLine';
+      for (let k = 0; k < size; k++) {
+        const wrap = document.createElement('div');
+        const img = document.createElement('img');
+        img.className = 'groupCardImg';
+        const loading = document.createElement('div');
+        loading.className = 'groupCardLoading';
+        loading.style.display = 'none';
+        wrap.appendChild(img);
+        wrap.appendChild(loading);
+        rowEl.appendChild(wrap);
+        slots.push({ img, loading });
+      }
+      groupCardsRow.appendChild(rowEl);
     });
 
     showContent();
@@ -540,8 +559,8 @@
   const DEFAULT_LAYOUT = {
     content: { centerX: 650, centerY: 540, scale: 1, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 20 },
     secondary: { centerX: 300, centerY: 950, scale: 0.6, gap: 16, enabled: false, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 16 },
-    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 },
-    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 }
+    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 },
+    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 }
   };
 
   const cam1Box = document.getElementById('cam1Box');
@@ -592,8 +611,7 @@
     cam1Box.style.borderRadius = c1.cornerRadius + 'px';
     cam1Box.style.border = c1.borderWidth + 'px solid ' + c1.borderColor;
     cam1Box.style.display = c1.enabled ? 'block' : 'none';
-    cam1Name.style.display = c1.nameplateEnabled ? 'block' : 'none';
-    cam1Name.textContent = c1.name;
+    applyNameplate(cam1Name, c1);
 
     cam2Box.style.left = c2.centerX + 'px';
     cam2Box.style.top = c2.centerY + 'px';
@@ -602,8 +620,29 @@
     cam2Box.style.borderRadius = c2.cornerRadius + 'px';
     cam2Box.style.border = c2.borderWidth + 'px solid ' + c2.borderColor;
     cam2Box.style.display = c2.enabled ? 'block' : 'none';
-    cam2Name.style.display = c2.nameplateEnabled ? 'block' : 'none';
-    cam2Name.textContent = c2.name;
+    applyNameplate(cam2Name, c2);
+  }
+
+  function hexToRgba(hex, alpha) {
+    const h = (hex || '#000000').replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+  }
+
+  // Nameplate sits below the webcam border frame, centered under it,
+  // with its own adjustable offset, text size/color, and background.
+  function applyNameplate(nameEl, c) {
+    nameEl.style.display = (c.enabled && c.nameplateEnabled) ? 'block' : 'none';
+    nameEl.textContent = c.name;
+    nameEl.style.left = c.centerX + 'px';
+    nameEl.style.top = (c.centerY + c.height / 2 + (c.nameplateOffsetY || 0)) + 'px';
+    nameEl.style.fontSize = (c.nameplateFontSize || 16) + 'px';
+    nameEl.style.color = c.nameplateTextColor || '#ffffff';
+    nameEl.style.background = c.nameplateBgEnabled
+      ? hexToRgba(c.nameplateBgColor || '#0a0c14', c.nameplateBgOpacity != null ? c.nameplateBgOpacity : 0.82)
+      : 'transparent';
   }
 
   applyLayout({});
