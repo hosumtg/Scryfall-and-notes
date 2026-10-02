@@ -365,6 +365,27 @@
       <input id="cam1BorderWidth" type="range" min="0" max="30" value="4">
     </div>
     <div class="checkRow"><input id="cam1NameplateEnabled" type="checkbox" checked> Show nameplate</div>
+    <div class="sliderRow">
+      <label>Nameplate offset below box <span class="val" id="cam1NameOffsetVal">14px</span></label>
+      <input id="cam1NameOffset" type="range" min="-50" max="150" value="14">
+    </div>
+    <div class="sliderRow">
+      <label>Nameplate text size <span class="val" id="cam1NameFontSizeVal">16px</span></label>
+      <input id="cam1NameFontSize" type="range" min="10" max="40" value="16">
+    </div>
+    <div class="colorRow">
+      <input id="cam1NameTextColor" type="color" value="#ffffff">
+      <label>Nameplate text color</label>
+    </div>
+    <div class="checkRow"><input id="cam1NameBgEnabled" type="checkbox" checked> Nameplate background</div>
+    <div class="colorRow">
+      <input id="cam1NameBgColor" type="color" value="#0a0c14">
+      <label>Nameplate background color</label>
+    </div>
+    <div class="sliderRow">
+      <label>Nameplate background opacity <span class="val" id="cam1NameBgOpacityVal">82%</span></label>
+      <input id="cam1NameBgOpacity" type="range" min="0" max="100" value="82">
+    </div>
     <button id="resetCam1Btn" class="small">Reset frame 1 layout</button>
   </div>
 
@@ -401,6 +422,27 @@
       <input id="cam2BorderWidth" type="range" min="0" max="30" value="4">
     </div>
     <div class="checkRow"><input id="cam2NameplateEnabled" type="checkbox" checked> Show nameplate</div>
+    <div class="sliderRow">
+      <label>Nameplate offset below box <span class="val" id="cam2NameOffsetVal">14px</span></label>
+      <input id="cam2NameOffset" type="range" min="-50" max="150" value="14">
+    </div>
+    <div class="sliderRow">
+      <label>Nameplate text size <span class="val" id="cam2NameFontSizeVal">16px</span></label>
+      <input id="cam2NameFontSize" type="range" min="10" max="40" value="16">
+    </div>
+    <div class="colorRow">
+      <input id="cam2NameTextColor" type="color" value="#ffffff">
+      <label>Nameplate text color</label>
+    </div>
+    <div class="checkRow"><input id="cam2NameBgEnabled" type="checkbox" checked> Nameplate background</div>
+    <div class="colorRow">
+      <input id="cam2NameBgColor" type="color" value="#0a0c14">
+      <label>Nameplate background color</label>
+    </div>
+    <div class="sliderRow">
+      <label>Nameplate background opacity <span class="val" id="cam2NameBgOpacityVal">82%</span></label>
+      <input id="cam2NameBgOpacity" type="range" min="0" max="100" value="82">
+    </div>
     <button id="resetCam2Btn" class="small">Reset frame 2 layout</button>
   </div>
 </div>
@@ -1238,8 +1280,8 @@
   const DEFAULT_LAYOUT = {
     content: { centerX: 650, centerY: 540, scale: 1, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 20 },
     secondary: { centerX: 300, centerY: 950, scale: 0.6, gap: 16, enabled: false, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 16 },
-    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 },
-    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 }
+    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 },
+    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 }
   };
 
   let layout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
@@ -1279,6 +1321,12 @@
     cam1Enabled: document.getElementById('cam1Enabled'),
     cam1BorderColor: document.getElementById('cam1BorderColor'),
     cam1BorderWidth: document.getElementById('cam1BorderWidth'), cam1BorderWidthVal: document.getElementById('cam1BorderWidthVal'),
+    cam1NameOffset: document.getElementById('cam1NameOffset'), cam1NameOffsetVal: document.getElementById('cam1NameOffsetVal'),
+    cam1NameFontSize: document.getElementById('cam1NameFontSize'), cam1NameFontSizeVal: document.getElementById('cam1NameFontSizeVal'),
+    cam1NameTextColor: document.getElementById('cam1NameTextColor'),
+    cam1NameBgEnabled: document.getElementById('cam1NameBgEnabled'),
+    cam1NameBgColor: document.getElementById('cam1NameBgColor'),
+    cam1NameBgOpacity: document.getElementById('cam1NameBgOpacity'), cam1NameBgOpacityVal: document.getElementById('cam1NameBgOpacityVal'),
 
     cam2X: document.getElementById('cam2X'), cam2XVal: document.getElementById('cam2XVal'),
     cam2Y: document.getElementById('cam2Y'), cam2YVal: document.getElementById('cam2YVal'),
@@ -1289,7 +1337,13 @@
     cam2NameplateEnabled: document.getElementById('cam2NameplateEnabled'),
     cam2Enabled: document.getElementById('cam2Enabled'),
     cam2BorderColor: document.getElementById('cam2BorderColor'),
-    cam2BorderWidth: document.getElementById('cam2BorderWidth'), cam2BorderWidthVal: document.getElementById('cam2BorderWidthVal')
+    cam2BorderWidth: document.getElementById('cam2BorderWidth'), cam2BorderWidthVal: document.getElementById('cam2BorderWidthVal'),
+    cam2NameOffset: document.getElementById('cam2NameOffset'), cam2NameOffsetVal: document.getElementById('cam2NameOffsetVal'),
+    cam2NameFontSize: document.getElementById('cam2NameFontSize'), cam2NameFontSizeVal: document.getElementById('cam2NameFontSizeVal'),
+    cam2NameTextColor: document.getElementById('cam2NameTextColor'),
+    cam2NameBgEnabled: document.getElementById('cam2NameBgEnabled'),
+    cam2NameBgColor: document.getElementById('cam2NameBgColor'),
+    cam2NameBgOpacity: document.getElementById('cam2NameBgOpacity'), cam2NameBgOpacityVal: document.getElementById('cam2NameBgOpacityVal')
   };
 
   function reflectLayoutToControls() {
@@ -1322,6 +1376,12 @@
     els.cam1Enabled.checked = !!c1.enabled;
     els.cam1BorderColor.value = c1.borderColor;
     els.cam1BorderWidth.value = c1.borderWidth; els.cam1BorderWidthVal.textContent = c1.borderWidth + 'px';
+    els.cam1NameOffset.value = c1.nameplateOffsetY; els.cam1NameOffsetVal.textContent = c1.nameplateOffsetY + 'px';
+    els.cam1NameFontSize.value = c1.nameplateFontSize; els.cam1NameFontSizeVal.textContent = c1.nameplateFontSize + 'px';
+    els.cam1NameTextColor.value = c1.nameplateTextColor;
+    els.cam1NameBgEnabled.checked = c1.nameplateBgEnabled;
+    els.cam1NameBgColor.value = c1.nameplateBgColor;
+    els.cam1NameBgOpacity.value = Math.round(c1.nameplateBgOpacity * 100); els.cam1NameBgOpacityVal.textContent = Math.round(c1.nameplateBgOpacity * 100) + '%';
 
     els.cam2X.value = c2.centerX; els.cam2XVal.textContent = c2.centerX;
     els.cam2Y.value = c2.centerY; els.cam2YVal.textContent = c2.centerY;
@@ -1333,6 +1393,12 @@
     els.cam2Enabled.checked = !!c2.enabled;
     els.cam2BorderColor.value = c2.borderColor;
     els.cam2BorderWidth.value = c2.borderWidth; els.cam2BorderWidthVal.textContent = c2.borderWidth + 'px';
+    els.cam2NameOffset.value = c2.nameplateOffsetY; els.cam2NameOffsetVal.textContent = c2.nameplateOffsetY + 'px';
+    els.cam2NameFontSize.value = c2.nameplateFontSize; els.cam2NameFontSizeVal.textContent = c2.nameplateFontSize + 'px';
+    els.cam2NameTextColor.value = c2.nameplateTextColor;
+    els.cam2NameBgEnabled.checked = c2.nameplateBgEnabled;
+    els.cam2NameBgColor.value = c2.nameplateBgColor;
+    els.cam2NameBgOpacity.value = Math.round(c2.nameplateBgOpacity * 100); els.cam2NameBgOpacityVal.textContent = Math.round(c2.nameplateBgOpacity * 100) + '%';
   }
 
   els.contentX.addEventListener('input', () => { layout.content.centerX = +els.contentX.value; els.contentXVal.textContent = layout.content.centerX; pushLayout(); });
@@ -1373,6 +1439,12 @@
   els.cam1Enabled.addEventListener('change', () => { layout.cam1.enabled = els.cam1Enabled.checked; pushLayout(); });
   els.cam1BorderColor.addEventListener('input', () => { layout.cam1.borderColor = els.cam1BorderColor.value; pushLayout(); });
   els.cam1BorderWidth.addEventListener('input', () => { layout.cam1.borderWidth = +els.cam1BorderWidth.value; els.cam1BorderWidthVal.textContent = els.cam1BorderWidth.value + 'px'; pushLayout(); });
+  els.cam1NameOffset.addEventListener('input', () => { layout.cam1.nameplateOffsetY = +els.cam1NameOffset.value; els.cam1NameOffsetVal.textContent = els.cam1NameOffset.value + 'px'; pushLayout(); });
+  els.cam1NameFontSize.addEventListener('input', () => { layout.cam1.nameplateFontSize = +els.cam1NameFontSize.value; els.cam1NameFontSizeVal.textContent = els.cam1NameFontSize.value + 'px'; pushLayout(); });
+  els.cam1NameTextColor.addEventListener('input', () => { layout.cam1.nameplateTextColor = els.cam1NameTextColor.value; pushLayout(); });
+  els.cam1NameBgEnabled.addEventListener('change', () => { layout.cam1.nameplateBgEnabled = els.cam1NameBgEnabled.checked; pushLayout(); });
+  els.cam1NameBgColor.addEventListener('input', () => { layout.cam1.nameplateBgColor = els.cam1NameBgColor.value; pushLayout(); });
+  els.cam1NameBgOpacity.addEventListener('input', () => { layout.cam1.nameplateBgOpacity = (+els.cam1NameBgOpacity.value) / 100; els.cam1NameBgOpacityVal.textContent = els.cam1NameBgOpacity.value + '%'; pushLayout(); });
   document.getElementById('resetCam1Btn').addEventListener('click', () => {
     layout.cam1 = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.cam1));
     reflectLayoutToControls();
@@ -1389,6 +1461,12 @@
   els.cam2Enabled.addEventListener('change', () => { layout.cam2.enabled = els.cam2Enabled.checked; pushLayout(); });
   els.cam2BorderColor.addEventListener('input', () => { layout.cam2.borderColor = els.cam2BorderColor.value; pushLayout(); });
   els.cam2BorderWidth.addEventListener('input', () => { layout.cam2.borderWidth = +els.cam2BorderWidth.value; els.cam2BorderWidthVal.textContent = els.cam2BorderWidth.value + 'px'; pushLayout(); });
+  els.cam2NameOffset.addEventListener('input', () => { layout.cam2.nameplateOffsetY = +els.cam2NameOffset.value; els.cam2NameOffsetVal.textContent = els.cam2NameOffset.value + 'px'; pushLayout(); });
+  els.cam2NameFontSize.addEventListener('input', () => { layout.cam2.nameplateFontSize = +els.cam2NameFontSize.value; els.cam2NameFontSizeVal.textContent = els.cam2NameFontSize.value + 'px'; pushLayout(); });
+  els.cam2NameTextColor.addEventListener('input', () => { layout.cam2.nameplateTextColor = els.cam2NameTextColor.value; pushLayout(); });
+  els.cam2NameBgEnabled.addEventListener('change', () => { layout.cam2.nameplateBgEnabled = els.cam2NameBgEnabled.checked; pushLayout(); });
+  els.cam2NameBgColor.addEventListener('input', () => { layout.cam2.nameplateBgColor = els.cam2NameBgColor.value; pushLayout(); });
+  els.cam2NameBgOpacity.addEventListener('input', () => { layout.cam2.nameplateBgOpacity = (+els.cam2NameBgOpacity.value) / 100; els.cam2NameBgOpacityVal.textContent = els.cam2NameBgOpacity.value + '%'; pushLayout(); });
   document.getElementById('resetCam2Btn').addEventListener('click', () => {
     layout.cam2 = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.cam2));
     reflectLayoutToControls();
