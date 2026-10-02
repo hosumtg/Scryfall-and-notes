@@ -559,8 +559,8 @@
   const DEFAULT_LAYOUT = {
     content: { centerX: 650, centerY: 540, scale: 1, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 20 },
     secondary: { centerX: 300, centerY: 950, scale: 0.6, gap: 16, enabled: false, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 16 },
-    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 },
-    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 }
+    cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, nameplateOffsetX: 0, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 },
+    cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, nameplateOffsetX: 0, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 }
   };
 
   const cam1Box = document.getElementById('cam1Box');
@@ -636,7 +636,7 @@
   function applyNameplate(nameEl, c) {
     nameEl.style.display = (c.enabled && c.nameplateEnabled) ? 'block' : 'none';
     nameEl.textContent = c.name;
-    nameEl.style.left = c.centerX + 'px';
+    nameEl.style.left = (c.centerX + (c.nameplateOffsetX || 0)) + 'px';
     nameEl.style.top = (c.centerY + c.height / 2 + (c.nameplateOffsetY || 0)) + 'px';
     nameEl.style.fontSize = (c.nameplateFontSize || 16) + 'px';
     nameEl.style.color = c.nameplateTextColor || '#ffffff';
