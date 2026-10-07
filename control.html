@@ -279,8 +279,28 @@
     <input id="contentY" type="range" min="0" max="1080" value="540">
   </div>
   <div class="sliderRow">
-    <label>Size <span class="val" id="contentScaleVal">100%</span></label>
+    <label>Overall size <span class="val" id="contentScaleVal">100%</span></label>
     <input id="contentScale" type="range" min="50" max="200" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Single card size <span class="val" id="contentScaleCardVal">100%</span></label>
+    <input id="contentScaleCard" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Card group size <span class="val" id="contentScaleGroupVal">100%</span></label>
+    <input id="contentScaleGroup" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Card pair size <span class="val" id="contentScalePairVal">100%</span></label>
+    <input id="contentScalePair" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Image size <span class="val" id="contentScaleImageVal">100%</span></label>
+    <input id="contentScaleImage" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Slide size <span class="val" id="contentScaleSlideVal">100%</span></label>
+    <input id="contentScaleSlide" type="range" min="30" max="300" value="100">
   </div>
   <div class="checkRow"><input id="contentBgEnabled" type="checkbox"> Show background</div>
   <div class="colorRow">
@@ -1286,7 +1306,7 @@
 
   // ===== Layout controls =====
   const DEFAULT_LAYOUT = {
-    content: { centerX: 650, centerY: 540, scale: 1, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 20 },
+    content: { centerX: 650, centerY: 540, scale: 1, scaleCard: 1, scaleGroup: 1, scalePair: 1, scaleImage: 1, scaleSlide: 1, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 20 },
     secondary: { centerX: 300, centerY: 950, scale: 0.6, gap: 16, enabled: false, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 16 },
     cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, nameplateOffsetX: 0, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 },
     cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, nameplateOffsetX: 0, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 }
@@ -1304,6 +1324,11 @@
     contentX: document.getElementById('contentX'), contentXVal: document.getElementById('contentXVal'),
     contentY: document.getElementById('contentY'), contentYVal: document.getElementById('contentYVal'),
     contentScale: document.getElementById('contentScale'), contentScaleVal: document.getElementById('contentScaleVal'),
+    contentScaleCard: document.getElementById('contentScaleCard'), contentScaleCardVal: document.getElementById('contentScaleCardVal'),
+    contentScaleGroup: document.getElementById('contentScaleGroup'), contentScaleGroupVal: document.getElementById('contentScaleGroupVal'),
+    contentScalePair: document.getElementById('contentScalePair'), contentScalePairVal: document.getElementById('contentScalePairVal'),
+    contentScaleImage: document.getElementById('contentScaleImage'), contentScaleImageVal: document.getElementById('contentScaleImageVal'),
+    contentScaleSlide: document.getElementById('contentScaleSlide'), contentScaleSlideVal: document.getElementById('contentScaleSlideVal'),
     contentBgEnabled: document.getElementById('contentBgEnabled'),
     contentBgColor: document.getElementById('contentBgColor'),
     contentBgOpacity: document.getElementById('contentBgOpacity'), contentBgOpacityVal: document.getElementById('contentBgOpacityVal'),
@@ -1361,6 +1386,11 @@
     els.contentX.value = c.centerX; els.contentXVal.textContent = c.centerX;
     els.contentY.value = c.centerY; els.contentYVal.textContent = c.centerY;
     els.contentScale.value = Math.round(c.scale * 100); els.contentScaleVal.textContent = Math.round(c.scale * 100) + '%';
+    els.contentScaleCard.value = Math.round(c.scaleCard * 100); els.contentScaleCardVal.textContent = Math.round(c.scaleCard * 100) + '%';
+    els.contentScaleGroup.value = Math.round(c.scaleGroup * 100); els.contentScaleGroupVal.textContent = Math.round(c.scaleGroup * 100) + '%';
+    els.contentScalePair.value = Math.round(c.scalePair * 100); els.contentScalePairVal.textContent = Math.round(c.scalePair * 100) + '%';
+    els.contentScaleImage.value = Math.round(c.scaleImage * 100); els.contentScaleImageVal.textContent = Math.round(c.scaleImage * 100) + '%';
+    els.contentScaleSlide.value = Math.round(c.scaleSlide * 100); els.contentScaleSlideVal.textContent = Math.round(c.scaleSlide * 100) + '%';
     els.contentBgEnabled.checked = c.bgEnabled;
     els.contentBgColor.value = c.bgColor;
     els.contentBgOpacity.value = Math.round(c.bgOpacity * 100); els.contentBgOpacityVal.textContent = Math.round(c.bgOpacity * 100) + '%';
@@ -1416,6 +1446,11 @@
   els.contentX.addEventListener('input', () => { layout.content.centerX = +els.contentX.value; els.contentXVal.textContent = layout.content.centerX; pushLayout(); });
   els.contentY.addEventListener('input', () => { layout.content.centerY = +els.contentY.value; els.contentYVal.textContent = layout.content.centerY; pushLayout(); });
   els.contentScale.addEventListener('input', () => { layout.content.scale = (+els.contentScale.value) / 100; els.contentScaleVal.textContent = els.contentScale.value + '%'; pushLayout(); });
+  els.contentScaleCard.addEventListener('input', () => { layout.content.scaleCard = (+els.contentScaleCard.value) / 100; els.contentScaleCardVal.textContent = els.contentScaleCard.value + '%'; pushLayout(); });
+  els.contentScaleGroup.addEventListener('input', () => { layout.content.scaleGroup = (+els.contentScaleGroup.value) / 100; els.contentScaleGroupVal.textContent = els.contentScaleGroup.value + '%'; pushLayout(); });
+  els.contentScalePair.addEventListener('input', () => { layout.content.scalePair = (+els.contentScalePair.value) / 100; els.contentScalePairVal.textContent = els.contentScalePair.value + '%'; pushLayout(); });
+  els.contentScaleImage.addEventListener('input', () => { layout.content.scaleImage = (+els.contentScaleImage.value) / 100; els.contentScaleImageVal.textContent = els.contentScaleImage.value + '%'; pushLayout(); });
+  els.contentScaleSlide.addEventListener('input', () => { layout.content.scaleSlide = (+els.contentScaleSlide.value) / 100; els.contentScaleSlideVal.textContent = els.contentScaleSlide.value + '%'; pushLayout(); });
   els.contentBgEnabled.addEventListener('change', () => { layout.content.bgEnabled = els.contentBgEnabled.checked; pushLayout(); });
   els.contentBgColor.addEventListener('input', () => { layout.content.bgColor = els.contentBgColor.value; pushLayout(); });
   els.contentBgOpacity.addEventListener('input', () => { layout.content.bgOpacity = (+els.contentBgOpacity.value) / 100; els.contentBgOpacityVal.textContent = els.contentBgOpacity.value + '%'; pushLayout(); });
