@@ -92,6 +92,28 @@
   .secondaryCardImg { display: block; max-width: 260px; width: 100%; border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
   .secondaryCardLoading { color: #f4c04a; font-size: 15px; text-align: center; padding: 14px; width: 260px; }
 
+  /* ===== Topic header (optional, stays up while you talk about a topic) ===== */
+  #headerZone {
+    position: absolute;
+    left: 960px; top: 60px;
+    width: max-content;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  #headerInner {
+    padding: 10px 32px;
+    border-radius: 14px;
+    background: transparent;
+    font-family: var(--slide-font-family);
+    font-weight: 700;
+    font-size: 44px;
+    color: #ffffff;
+    white-space: nowrap;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  #headerInner.visible { opacity: 1; }
+
   :root {
     --slide-text-color: #ffffff;
     --slide-accent-color: #f4c04a;
@@ -170,6 +192,8 @@
     </div>
   </div>
 
+  <div id="headerZone"><div id="headerInner"></div></div>
+
   <div id="secondaryZone">
     <div id="secondaryInner"></div>
   </div>
@@ -224,6 +248,8 @@
   const groupHeader = document.getElementById('groupHeader');
   const groupCardsRow = document.getElementById('groupCardsRow');
   const secondaryZone = document.getElementById('secondaryZone');
+  const headerZone = document.getElementById('headerZone');
+  const headerInner = document.getElementById('headerInner');
   const secondaryInner = document.getElementById('secondaryInner');
 
   let CARD_LIST = [];
@@ -277,6 +303,18 @@
     const c = contentLayoutCache;
     const total = (c.scale != null ? c.scale : 1) * (c[KIND_KEYS[contentKind]] != null ? c[KIND_KEYS[contentKind]] : 1);
     contentZone.style.transform = 'translate(-50%, -50%) scale(' + total + ')';
+    // Backgrounds exist only for slides and images; cards, groups and pairs never get one.
+    const prefix = contentKind === 'slide' ? 'slide' : (contentKind === 'image' ? 'image' : null);
+    if (prefix && c[prefix + 'BgEnabled']) {
+      const hex = (c[prefix + 'BgColor'] || '#0a0c14').replace('#', '');
+      const r = parseInt(hex.substring(0,2), 16);
+      const g = parseInt(hex.substring(2,4), 16);
+      const b = parseInt(hex.substring(4,6), 16);
+      const a = c[prefix + 'BgOpacity'] != null ? c[prefix + 'BgOpacity'] : 0.85;
+      contentInner.style.background = 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+    } else {
+      contentInner.style.background = 'transparent';
+    }
   }
   function setContentKind(kind) { contentKind = kind; updateContentTransform(); }
 
@@ -496,6 +534,24 @@
     renderCurrent();
   });
 
+  /* ============ Topic header ============ */
+  let HEADERS = [];
+  let headerState = { index: 0, visible: false };
+  function renderHeader() {
+    const text = HEADERS[headerState.index];
+    if (headerState.visible && text) {
+      headerInner.textContent = text;
+      headerInner.classList.add('visible');
+    } else {
+      headerInner.classList.remove('visible');
+    }
+  }
+  db.ref('overlay/headers').on('value', (snap) => { HEADERS = snap.val() || []; renderHeader(); });
+  db.ref('overlay/headerState').on('value', (snap) => {
+    headerState = Object.assign({ index: 0, visible: false }, snap.val() || {});
+    renderHeader();
+  });
+
   /* ============ Secondary card slot — always-on, shows every card in the list ============ */
   async function renderSecondary() {
     if (!SECONDARY_CARDS.length) {
@@ -573,8 +629,9 @@
 
   /* ============ Layout (position / size / style for everything) ============ */
   const DEFAULT_LAYOUT = {
-    content: { centerX: 650, centerY: 540, scale: 1, scaleCard: 1, scaleGroup: 1, scalePair: 1, scaleImage: 1, scaleSlide: 1, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 20 },
+    content: { centerX: 650, centerY: 540, scale: 1, scaleCard: 1, scaleGroup: 1, scalePair: 1, scaleImage: 1, scaleSlide: 1, slideBgEnabled: false, slideBgColor: '#0a0c14', slideBgOpacity: 0.85, imageBgEnabled: false, imageBgColor: '#0a0c14', imageBgOpacity: 0.85, cornerRadius: 20 },
     secondary: { centerX: 300, centerY: 950, scale: 0.6, gap: 16, enabled: false, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 16 },
+    header: { centerX: 960, centerY: 60, scale: 1, fontSize: 44, textColor: '#ffffff', bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 14 },
     cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, nameplateOffsetX: 0, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 },
     cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, nameplateOffsetX: 0, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 }
   };
@@ -587,6 +644,7 @@
   function applyLayout(layout) {
     const c = Object.assign({}, DEFAULT_LAYOUT.content, layout.content);
     const s = Object.assign({}, DEFAULT_LAYOUT.secondary, layout.secondary);
+    const h = Object.assign({}, DEFAULT_LAYOUT.header, layout.header);
     const c1 = Object.assign({}, DEFAULT_LAYOUT.cam1, layout.cam1);
     const c2 = Object.assign({}, DEFAULT_LAYOUT.cam2, layout.cam2);
 
@@ -595,19 +653,18 @@
     contentLayoutCache = c;
     updateContentTransform();
     contentInner.style.borderRadius = c.cornerRadius + 'px';
-    if (c.bgEnabled) {
-      const hex = c.bgColor.replace('#', '');
-      const r = parseInt(hex.substring(0,2), 16);
-      const g = parseInt(hex.substring(2,4), 16);
-      const b = parseInt(hex.substring(4,6), 16);
-      contentInner.style.background = 'rgba(' + r + ',' + g + ',' + b + ',' + c.bgOpacity + ')';
-    } else {
-      contentInner.style.background = 'transparent';
-    }
 
     secondaryZone.style.left = s.centerX + 'px';
     secondaryZone.style.top = s.centerY + 'px';
     secondaryZone.style.transform = 'translate(-50%, -50%) scale(' + s.scale + ')';
+    headerZone.style.left = h.centerX + 'px';
+    headerZone.style.top = h.centerY + 'px';
+    headerZone.style.transform = 'translate(-50%, -50%) scale(' + h.scale + ')';
+    headerInner.style.fontSize = h.fontSize + 'px';
+    headerInner.style.color = h.textColor;
+    headerInner.style.borderRadius = h.cornerRadius + 'px';
+    headerInner.style.background = h.bgEnabled ? hexToRgba(h.bgColor, h.bgOpacity) : 'transparent';
+
     secondaryZone.style.display = s.enabled ? 'block' : 'none';
     secondaryInner.style.borderRadius = s.cornerRadius + 'px';
     secondaryInner.style.gap = s.gap + 'px';
