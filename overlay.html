@@ -326,10 +326,10 @@
   }
 
   // Splits a group's card count into evenly-sized rows:
-  // 1-4 cards -> one row. 4-6 -> two rows (5 => 2+3, 6 => 3+3).
+  // 1-3 cards -> one row. 4-6 -> two rows (4 => 2+2, 5 => 2+3, 6 => 3+3).
   // 7-9 -> three rows (7 => 2+2+3, 8 => 2+3+3, 9 => 3+3+3).
   function splitIntoRows(n) {
-    if (n <= 4) return [n];
+    if (n < 4) return [n];
     const rows = n < 7 ? 2 : 3;
     const base = Math.floor(n / rows);
     const extra = n % rows;
