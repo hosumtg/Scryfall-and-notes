@@ -95,8 +95,21 @@
 </head>
 <body>
 
+<!-- ===== Sign-in gate: control stays locked until you sign in ===== -->
+<div id="loginGate" style="position:fixed; inset:0; z-index:1000; background:#14161c; display:flex; align-items:center; justify-content:center;">
+  <div class="panel" style="margin-top:0; width:340px;">
+    <h2>Sign in to control the overlay</h2>
+    <input id="loginEmail" type="text" placeholder="Email" autocomplete="username">
+    <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" style="width:100%; box-sizing:border-box; background:#0f1015; color:#fff; border:1px solid #444; border-radius:8px; padding:10px; font-size:14px; margin-bottom:8px;">
+    <button id="loginBtn" class="small">Sign in</button>
+    <div id="loginError" style="font-size:12px; color:#ff8080; margin-top:8px;"></div>
+  </div>
+</div>
+
+
 <h1>Podcast Overlay Control</h1>
 <div id="status">connecting...</div>
+<div style="margin-bottom:16px;"><button id="signOutBtn" class="small">Sign out</button></div>
 
 <div id="preview">
   <span class="label">Now showing</span>
@@ -534,6 +547,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
 <script>
   /* =========================================================
@@ -551,6 +565,24 @@
   /* ========================================================= */
 
   firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  // Reading is public (the overlay needs it); writing requires this sign-in.
+  const loginGate = document.getElementById('loginGate');
+  const loginEmail = document.getElementById('loginEmail');
+  const loginPassword = document.getElementById('loginPassword');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginError = document.getElementById('loginError');
+  auth.onAuthStateChanged((user) => {
+    loginGate.style.display = user ? 'none' : 'flex';
+  });
+  function doLogin() {
+    loginError.textContent = '';
+    auth.signInWithEmailAndPassword(loginEmail.value.trim(), loginPassword.value)
+      .catch((e) => { loginError.textContent = e.message; });
+  }
+  loginBtn.addEventListener('click', doLogin);
+  loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('signOutBtn').addEventListener('click', () => auth.signOut());
   const db = firebase.database();
   const stateRef = db.ref('overlay/state');
   const cardsRef = db.ref('overlay/cards');
