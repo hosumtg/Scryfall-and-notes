@@ -59,11 +59,15 @@
   .pairLoading { color: #f4c04a; font-size: 18px; text-align: center; padding: 20px; width: 320px; }
 
   #groupHeader {
-    color: var(--slide-accent-color);
+    color: #f4c04a;
     font-family: var(--slide-font-family);
     font-size: 32px; font-weight: 700;
     text-align: center;
-    margin-bottom: 14px;
+    width: fit-content;
+    margin: 0 auto 14px;
+    padding: 6px 26px;
+    border-radius: 12px;
+    background: transparent;
   }
   #groupCardsRow { display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center; }
   .groupCardsRowLine { display: flex; gap: 20px; align-items: flex-start; justify-content: center; }
@@ -298,7 +302,7 @@
   // Per-type sizing: overall scale x the multiplier for whatever is currently showing.
   let contentKind = 'card';
   let contentLayoutCache = {};
-  const KIND_KEYS = { card: 'scaleCard', group: 'scaleGroup', pair: 'scalePair', image: 'scaleImage', slide: 'scaleSlide' };
+  const KIND_KEYS = { card: 'scaleCard', groupS: 'scaleGroupSmall', groupM: 'scaleGroupMedium', groupL: 'scaleGroupLarge', pair: 'scalePair', image: 'scaleImage', slide: 'scaleSlide' };
   function updateContentTransform() {
     const c = contentLayoutCache;
     const total = (c.scale != null ? c.scale : 1) * (c[KIND_KEYS[contentKind]] != null ? c[KIND_KEYS[contentKind]] : 1);
@@ -326,17 +330,18 @@
   }
 
   // Splits a group's card count into evenly-sized rows:
-  // 1-3 cards -> one row. 4-6 -> two rows (4 => 2+2, 5 => 2+3, 6 => 3+3).
+  // 1-2 cards -> one row. 3 => 1+2, 4 => 2+2, 5 => 1+2+2, 6 => 3+3.
   // 7-9 -> three rows (7 => 2+2+3, 8 => 2+3+3, 9 => 3+3+3).
   function splitIntoRows(n) {
-    if (n < 4) return [n];
-    const rows = n < 7 ? 2 : 3;
-    const base = Math.floor(n / rows);
-    const extra = n % rows;
+    if (n <= 2) return [n];
+    if (n === 3) return [1, 2];
+    if (n === 4) return [2, 2];
+    if (n === 5) return [1, 2, 2];
+    if (n === 6) return [3, 3];
+    const base = Math.floor(n / 3);
+    const extra = n % 3;
     const sizes = [];
-    for (let i = 0; i < rows; i++) {
-      sizes.push(base + (i >= rows - extra ? 1 : 0));
-    }
+    for (let i = 0; i < 3; i++) sizes.push(base + (i >= 3 - extra ? 1 : 0));
     return sizes;
   }
 
@@ -369,7 +374,9 @@
   }
 
   async function renderGroup(entry) {
-    setContentKind('group');
+    // Separate size bar per group size: 1-5 cards, 6 cards, 7+ cards.
+    const nCards = entry.cards.length;
+    setContentKind(nCards <= 5 ? 'groupS' : (nCards === 6 ? 'groupM' : 'groupL'));
     cardWrap.style.display = 'none';
     bulletWrap.style.display = 'none';
     imageWrap.style.display = 'none';
@@ -629,7 +636,7 @@
 
   /* ============ Layout (position / size / style for everything) ============ */
   const DEFAULT_LAYOUT = {
-    content: { centerX: 650, centerY: 540, scale: 1, scaleCard: 1, scaleGroup: 1, scalePair: 1, scaleImage: 1, scaleSlide: 1, slideBgEnabled: false, slideBgColor: '#0a0c14', slideBgOpacity: 0.85, imageBgEnabled: false, imageBgColor: '#0a0c14', imageBgOpacity: 0.85, cornerRadius: 20 },
+    content: { centerX: 650, centerY: 540, scale: 1, scaleCard: 1, scaleGroupSmall: 1, scaleGroupMedium: 1, scaleGroupLarge: 1, groupHeaderColor: '#f4c04a', groupHeaderBgEnabled: false, groupHeaderBgColor: '#0a0c14', groupHeaderBgOpacity: 0.85, scalePair: 1, scaleImage: 1, scaleSlide: 1, slideBgEnabled: false, slideBgColor: '#0a0c14', slideBgOpacity: 0.85, imageBgEnabled: false, imageBgColor: '#0a0c14', imageBgOpacity: 0.85, cornerRadius: 20 },
     secondary: { centerX: 300, centerY: 950, scale: 0.6, gap: 16, enabled: false, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 16 },
     header: { centerX: 960, centerY: 60, scale: 1, fontSize: 44, textColor: '#ffffff', bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 14 },
     cam1: { centerX: 1670, centerY: 280, width: 500, height: 320, name: 'Host 1', nameplateEnabled: true, nameplateOffsetX: 0, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 },
@@ -652,6 +659,8 @@
     contentZone.style.top = c.centerY + 'px';
     contentLayoutCache = c;
     updateContentTransform();
+    groupHeader.style.color = c.groupHeaderColor;
+    groupHeader.style.background = c.groupHeaderBgEnabled ? hexToRgba(c.groupHeaderBgColor, c.groupHeaderBgOpacity) : 'transparent';
     contentInner.style.borderRadius = c.cornerRadius + 'px';
 
     secondaryZone.style.left = s.centerX + 'px';
