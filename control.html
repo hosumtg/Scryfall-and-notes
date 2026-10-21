@@ -132,6 +132,26 @@
   <button id="btnHide" class="danger">Hide overlay</button>
 </div>
 
+<!-- ===== Profiles ===== -->
+<div class="panel">
+  <h2>Profiles</h2>
+  <p style="font-size:12px; color:#999; margin:0 0 10px;">A profile is a full snapshot of everything: cards, groups, slides, images, pairs, headers, secondary slot, background, styles and layout. Save your setup, build something totally different, and switch back whenever you want.</p>
+  <div id="activeProfileLabel" style="font-size:13px; color:#f4c04a; margin-bottom:8px;">No profile loaded</div>
+  <select id="profileSelect"><option value="">(no saved profiles)</option></select>
+  <button id="loadProfileBtn" class="small">Load</button>
+  <button id="updateProfileBtn" class="small">Save changes to this profile</button>
+  <button id="deleteProfileBtn" class="small danger">Delete</button>
+
+  <div class="subPanel">
+    <h3>New profile</h3>
+    <input id="newProfileName" type="text" placeholder="Profile name, e.g. Podcast Ep 12">
+    <button id="saveAsProfileBtn" class="small">Save current setup as new profile</button>
+    <button id="blankProfileBtn" class="small">Create blank profile</button>
+    <div class="checkRow" style="margin-top:8px;"><input id="blankKeepLayout" type="checkbox" checked> Blank profile keeps current layout &amp; text style</div>
+  </div>
+  <div id="profileStatus" style="font-size:12px; color:#999; margin-top:8px;"></div>
+</div>
+
 <!-- ===== Card list editor ===== -->
 <div class="panel">
   <h2>Cards</h2>
@@ -1755,16 +1775,163 @@
 
   // Load whatever's currently saved (or defaults) once, then reflect it in the sliders.
   // Uses .once so this page doesn't fight with your own slider drags on every remote update.
-  layoutRef.once('value', (snap) => {
-    const saved = snap.val();
-    if (saved) {
-      layout.content = Object.assign({}, DEFAULT_LAYOUT.content, saved.content);
-      layout.secondary = Object.assign({}, DEFAULT_LAYOUT.secondary, saved.secondary);
-      layout.header = Object.assign({}, DEFAULT_LAYOUT.header, saved.header);
-      layout.cam1 = Object.assign({}, DEFAULT_LAYOUT.cam1, saved.cam1);
-      layout.cam2 = Object.assign({}, DEFAULT_LAYOUT.cam2, saved.cam2);
+  function loadLayoutOnce() {
+    layoutRef.once('value', (snap) => {
+      const saved = snap.val();
+      if (saved) {
+        layout.content = Object.assign({}, DEFAULT_LAYOUT.content, saved.content);
+        layout.secondary = Object.assign({}, DEFAULT_LAYOUT.secondary, saved.secondary);
+        layout.header = Object.assign({}, DEFAULT_LAYOUT.header, saved.header);
+        layout.cam1 = Object.assign({}, DEFAULT_LAYOUT.cam1, saved.cam1);
+        layout.cam2 = Object.assign({}, DEFAULT_LAYOUT.cam2, saved.cam2);
+      } else {
+        layout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+      }
+      reflectLayoutToControls();
+    });
+  }
+  loadLayoutOnce();
+
+  // ===== Profiles (full snapshots of the overlay data) =====
+  const overlayRef = db.ref('overlay');
+  const profilesRef = db.ref('profiles');
+  const activeProfileRef = db.ref('activeProfile');
+  let PROFILES = {};
+  let activeProfileKey = null;
+  const profileSelect = document.getElementById('profileSelect');
+  const activeProfileLabel = document.getElementById('activeProfileLabel');
+  const profileStatus = document.getElementById('profileStatus');
+  const newProfileName = document.getElementById('newProfileName');
+
+  function profileKeyFor(name) { return name.trim().replace(/[.$#\[\]\/]/g, '-'); }
+  function profileMsg(text) {
+    profileStatus.textContent = text;
+    setTimeout(() => { if (profileStatus.textContent === text) profileStatus.textContent = ''; }, 4000);
+  }
+
+  function renderProfileUI() {
+    const keys = Object.keys(PROFILES).sort((a, b) => (PROFILES[a].name || a).localeCompare(PROFILES[b].name || b));
+    const prevSelected = profileSelect.value;
+    profileSelect.innerHTML = '';
+    if (!keys.length) {
+      profileSelect.innerHTML = '<option value="">(no saved profiles)</option>';
     }
-    reflectLayoutToControls();
+    keys.forEach((k) => {
+      const opt = document.createElement('option');
+      opt.value = k;
+      opt.textContent = (PROFILES[k].name || k) + (k === activeProfileKey ? '  (loaded)' : '');
+      profileSelect.appendChild(opt);
+    });
+    profileSelect.value = (prevSelected && PROFILES[prevSelected]) ? prevSelected : (activeProfileKey && PROFILES[activeProfileKey] ? activeProfileKey : (keys[0] || ''));
+    activeProfileLabel.textContent = activeProfileKey && PROFILES[activeProfileKey]
+      ? 'Loaded profile: ' + (PROFILES[activeProfileKey].name || activeProfileKey)
+      : 'No profile loaded';
+  }
+
+  profilesRef.on('value', (snap) => { PROFILES = snap.val() || {}; renderProfileUI(); });
+  activeProfileRef.on('value', (snap) => { activeProfileKey = snap.val() || null; renderProfileUI(); });
+
+  // After the overlay data is replaced, bring this page's local sliders/indices back in line.
+  function resyncLocalFromDb() {
+    clearTimeout(layoutWriteTimer);
+    loadLayoutOnce();
+    stateRef.once('value', (snap) => {
+      const st = snap.val();
+      if (st) {
+        if (st.mode && st.mode !== 'clear') mode = st.mode;
+        cardIndex = st.cardIndex || 0;
+        slideIndex = st.slideIndex || 0;
+        imageIndex = st.imageIndex || 0;
+        pairIndex = st.pairIndex || 0;
+      }
+      updatePreview();
+    });
+  }
+
+  async function saveProfileSnapshot(name, key) {
+    clearTimeout(layoutWriteTimer);
+    await layoutRef.set(layout);          // make sure the latest slider values are included
+    const snap = await overlayRef.once('value');
+    await profilesRef.child(key).set({ name: name, savedAt: Date.now(), data: snap.val() || {} });
+  }
+
+  document.getElementById('saveAsProfileBtn').addEventListener('click', async () => {
+    const name = newProfileName.value.trim();
+    const key = profileKeyFor(name);
+    if (!key) { profileMsg('Enter a profile name first.'); return; }
+    if (PROFILES[key] && !confirm('A profile named "' + name + '" already exists. Overwrite it?')) return;
+    try {
+      await saveProfileSnapshot(name, key);
+      await activeProfileRef.set(key);
+      newProfileName.value = '';
+      profileMsg('Saved "' + name + '".');
+    } catch (e) { profileMsg('Save failed: ' + e.message); }
+  });
+
+  document.getElementById('updateProfileBtn').addEventListener('click', async () => {
+    const key = profileSelect.value;
+    if (!key || !PROFILES[key]) { profileMsg('Pick a profile first.'); return; }
+    const name = PROFILES[key].name || key;
+    if (!confirm('Overwrite saved profile "' + name + '" with what is on screen right now?')) return;
+    try {
+      await saveProfileSnapshot(name, key);
+      await activeProfileRef.set(key);
+      profileMsg('Updated "' + name + '".');
+    } catch (e) { profileMsg('Save failed: ' + e.message); }
+  });
+
+  document.getElementById('loadProfileBtn').addEventListener('click', async () => {
+    const key = profileSelect.value;
+    if (!key || !PROFILES[key]) { profileMsg('Pick a profile first.'); return; }
+    const name = PROFILES[key].name || key;
+    if (!confirm('Load "' + name + '"? This replaces everything currently in the overlay. Anything you have not saved to a profile will be lost.')) return;
+    try {
+      clearTimeout(layoutWriteTimer);
+      const snap = await profilesRef.child(key).once('value');
+      const p = snap.val();
+      const data = p && p.data && Object.keys(p.data).length ? p.data : null;
+      await overlayRef.set(data);
+      await activeProfileRef.set(key);
+      resyncLocalFromDb();
+      profileMsg('Loaded "' + name + '".');
+    } catch (e) { profileMsg('Load failed: ' + e.message); }
+  });
+
+  document.getElementById('deleteProfileBtn').addEventListener('click', async () => {
+    const key = profileSelect.value;
+    if (!key || !PROFILES[key]) { profileMsg('Pick a profile first.'); return; }
+    const name = PROFILES[key].name || key;
+    if (!confirm('Permanently delete saved profile "' + name + '"? (The overlay on screen is not changed.)')) return;
+    try {
+      await profilesRef.child(key).remove();
+      if (activeProfileKey === key) await activeProfileRef.set(null);
+      profileMsg('Deleted "' + name + '".');
+    } catch (e) { profileMsg('Delete failed: ' + e.message); }
+  });
+
+  document.getElementById('blankProfileBtn').addEventListener('click', async () => {
+    const name = newProfileName.value.trim();
+    const key = profileKeyFor(name);
+    if (!key) { profileMsg('Enter a name for the new profile first.'); return; }
+    if (PROFILES[key] && !confirm('A profile named "' + name + '" already exists. Replace it with a blank one?')) return;
+    if (!confirm('Start a blank profile "' + name + '"? This clears everything currently in the overlay. Save the current setup to a profile first if you want to keep it.')) return;
+    try {
+      clearTimeout(layoutWriteTimer);
+      const keep = document.getElementById('blankKeepLayout').checked;
+      const snap = await overlayRef.once('value');
+      const cur = snap.val() || {};
+      const fresh = {};
+      if (keep) {
+        if (cur.layout) fresh.layout = cur.layout;
+        if (cur.style) fresh.style = cur.style;
+      }
+      await overlayRef.set(Object.keys(fresh).length ? fresh : null);
+      await profilesRef.child(key).set({ name: name, savedAt: Date.now(), data: fresh });
+      await activeProfileRef.set(key);
+      newProfileName.value = '';
+      resyncLocalFromDb();
+      profileMsg('Created blank profile "' + name + '".');
+    } catch (e) { profileMsg('Failed: ' + e.message); }
   });
 
   // Keyboard shortcuts
