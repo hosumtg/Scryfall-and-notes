@@ -1283,7 +1283,7 @@
   });
 
   // ===== Image uploader =====
-  function fileToCompressedDataURL(file, maxWidth = 900, quality = 0.82) {
+  function fileToCompressedDataURL(file, maxWidth = 900, quality = 0.82, keepPng = false) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(new Error('Could not read file'));
@@ -1297,6 +1297,11 @@
           canvas.height = Math.round(img.height * scale);
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          // Keep PNGs as PNGs (sharp text, transparency) unless that gets too large for the database.
+          if (keepPng && file.type === 'image/png') {
+            const png = canvas.toDataURL('image/png');
+            if (png.length <= 4000000) { resolve(png); return; }
+          }
           resolve(canvas.toDataURL('image/jpeg', quality));
         };
         img.src = reader.result;
@@ -1310,7 +1315,13 @@
     if (!file) { imageUploadStatus.textContent = 'Choose a file first.'; return; }
     imageUploadStatus.textContent = 'Processing...';
     try {
-      const dataUrl = await fileToCompressedDataURL(file);
+      // Full resolution (up to 2560px wide) so images stay sharp when scaled up.
+      const dataUrl = await fileToCompressedDataURL(file, 2560, 0.95, true);
+      const totalChars = IMAGES.reduce((n, im) => n + ((im && im.dataUrl) ? im.dataUrl.length : 0), 0) + dataUrl.length;
+      if (totalChars > 12000000) {
+        imageUploadStatus.textContent = 'Too much image data in the database already (' + (totalChars / 1000000).toFixed(1) + 'MB of ~12MB). Remove an image first, or use a smaller one.';
+        return;
+      }
       const label = newImageLabel.value.trim();
       imagesRef.set(IMAGES.concat([{ label, dataUrl }]));
       newImageInput.value = '';
