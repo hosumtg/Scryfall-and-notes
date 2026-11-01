@@ -44,7 +44,8 @@
 
   #cardImg { display: block; max-width: 420px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
   #cardLoading { color: #f4c04a; font-size: 20px; text-align: center; padding: 20px 0; }
-  #customImg { display: block; max-width: 480px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
+  /* Show uploaded images at their real pixel size (capped to the canvas), so scaling up stays sharp. */
+  #customImg { display: block; width: auto; height: auto; max-width: 1860px; max-height: 1020px; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
 
   #pairHeader {
     color: var(--slide-accent-color);
