@@ -2,217 +2,604 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Podcast Overlay (OBS source — 1920x1080)</title>
+<title>Overlay Control Panel</title>
 <style>
-  html, body {
-    margin: 0; padding: 0;
-    width: 1920px; height: 1080px;
-    background: transparent;
+  body {
+    margin: 0;
+    background: #14161c;
+    color: #fff;
     font-family: 'Segoe UI', Arial, sans-serif;
-    overflow: hidden;
-  }
-  #canvas { position: relative; width: 1920px; height: 1080px; }
-
-  #bgLayer {
-    position: absolute; inset: 0;
-    width: 1920px; height: 1080px;
-    overflow: hidden;
-  }
-  #bgLayer img {
-    width: 100%; height: 100%;
-    object-fit: cover;
-    display: block;
-    transform: scale(1.08);
-    filter: blur(var(--bg-blur, 0px));
-  }
-
-  /* ===== Content zone (cards / slides / images) ===== */
-  #contentZone {
-    position: absolute;
-    left: 650px; top: 540px;
-    width: max-content;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  #contentInner {
-    padding: 24px 30px;
-    border-radius: 20px;
-    background: transparent;
-    opacity: 0;
-    transition: opacity 0.35s ease;
-  }
-  #contentInner.visible { opacity: 1; }
-
-  #cardImg { display: block; max-width: 420px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
-  #cardLoading { color: #f4c04a; font-size: 20px; text-align: center; padding: 20px 0; }
-  /* Show uploaded images at their real pixel size (capped to the canvas), so scaling up stays sharp. */
-  #customImg { display: block; width: auto; height: auto; max-width: 1860px; max-height: 1020px; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
-
-  #pairHeader {
-    color: var(--slide-accent-color);
-    font-family: var(--slide-font-family);
-    font-size: 32px; font-weight: 700;
-    text-align: center;
-    margin-bottom: 14px;
-  }
-  #pairCards { display: flex; gap: 24px; align-items: flex-start; justify-content: center; }
-  .pairSlot { display: flex; flex-direction: column; align-items: center; }
-  #pairCards img { display: block; max-width: 320px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
-  .pairLoading { color: #f4c04a; font-size: 18px; text-align: center; padding: 20px; width: 320px; }
-
-  #groupHeader {
-    color: #f4c04a;
-    font-family: var(--slide-font-family);
-    font-size: 32px; font-weight: 700;
-    text-align: center;
-    width: fit-content;
-    margin: 0 auto 14px;
-    padding: 6px 26px;
-    border-radius: 12px;
-    background: transparent;
-  }
-  #groupCardsRow { display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center; }
-  .groupCardsRowLine { display: flex; gap: 20px; align-items: flex-start; justify-content: center; }
-  .groupCardImg { display: block; max-width: 280px; width: 100%; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
-  .groupCardLoading { color: #f4c04a; font-size: 16px; text-align: center; padding: 16px; width: 280px; }
-
-  /* ===== Secondary card slot (always-on, shows however many cards you add) ===== */
-  #secondaryZone {
-    position: absolute;
-    left: 300px; top: 900px;
-    width: max-content;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  #secondaryInner {
     display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 16px;
-    padding: 16px;
-    border-radius: 16px;
-    background: transparent;
-    opacity: 0;
-    transition: opacity 0.35s ease;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 80px;
   }
-  #secondaryInner.visible { opacity: 1; }
-  .secondaryCardImg { display: block; max-width: 260px; width: 100%; border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
-  .secondaryCardLoading { color: #f4c04a; font-size: 15px; text-align: center; padding: 14px; width: 260px; }
-
-  /* ===== Topic header (optional, stays up while you talk about a topic) ===== */
-  #headerZone {
-    position: absolute;
-    left: 960px; top: 60px;
-    width: max-content;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  #headerInner {
-    padding: 10px 32px;
-    border-radius: 14px;
-    background: transparent;
-    font-family: var(--slide-font-family);
-    font-weight: 700;
-    font-size: 44px;
-    color: #ffffff;
-    white-space: nowrap;
+  h1 { font-size: 20px; color: #f4c04a; margin-bottom: 4px; }
+  h2 { font-size: 15px; color: #f4c04a; margin: 0 0 10px; }
+  h3 { font-size: 13px; color: #ccc; margin: 14px 0 6px; }
+  #status { font-size: 13px; color: #999; margin-bottom: 24px; }
+  #preview {
+    background: #1e2028;
+    border: 2px solid #f4c04a;
+    border-radius: 12px;
+    padding: 16px 24px;
+    font-size: 18px;
+    margin-bottom: 24px;
+    min-width: 280px;
     text-align: center;
-    opacity: 0;
-    transition: opacity 0.35s ease;
   }
-  #headerInner.visible { opacity: 1; }
+  #preview .label { color: #999; font-size: 12px; display: block; margin-bottom: 4px; }
+  .row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; justify-content: center; }
+  button {
+    background: #2a2d38;
+    color: #fff;
+    border: 2px solid #f4c04a;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  button:hover { background: #3a3d4a; }
+  button.mode.active { background: #f4c04a; color: #1a1300; }
+  button.big { font-size: 20px; padding: 18px 30px; }
+  button.danger { border-color: #ff5a5a; }
+  button.small { padding: 6px 10px; font-size: 13px; }
 
-  :root {
-    --slide-text-color: #ffffff;
-    --slide-accent-color: #f4c04a;
-    --slide-font-family: 'Segoe UI', Arial, sans-serif;
-    --slide-font-weight: 400;
+  .panel {
+    background: #1a1c24;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 18px 20px;
+    width: 420px;
+    max-width: 90vw;
+    margin-top: 30px;
   }
-  #slideHeader {
-    color: var(--slide-accent-color);
-    font-family: var(--slide-font-family);
-    font-size: 32px; font-weight: 700; margin-bottom: 12px;
-  }
-  #bulletList {
-    list-style: none; margin: 0; padding: 0;
-    color: var(--slide-text-color);
-    font-family: var(--slide-font-family);
-    font-weight: var(--slide-font-weight);
-    font-size: 28px; line-height: 1.6;
-  }
-  #bulletList li {
-    opacity: 0; transform: translateX(-16px);
-    transition: opacity 0.4s ease, transform 0.4s ease;
-    margin-bottom: 6px;
-  }
-  #bulletList li::before { content: "\2022  "; color: var(--slide-accent-color); }
-  #bulletList li.shown { opacity: 1; transform: translateX(0); }
-
-  /* ===== Webcam frame rectangles (border only — actual camera feed comes from a separate OBS source layered underneath) ===== */
-  .camBox {
-    position: absolute;
-    transform: translate(-50%, -50%);
+  .panel input[type="text"], .panel textarea, .panel select {
+    width: 100%;
     box-sizing: border-box;
-    background: transparent;
-  }
-  .namePlate {
-    position: absolute;
-    transform: translate(-50%, 0);
+    background: #0f1015;
+    color: #fff;
+    border: 1px solid #444;
     border-radius: 8px;
-    padding: 4px 14px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    white-space: nowrap;
+    padding: 10px;
+    font-size: 14px;
+    margin-bottom: 8px;
+    font-family: inherit;
   }
+  .listItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #22242e;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+  .listItem span { flex: 1; margin-right: 8px; }
+  .listItem.current { border: 1px solid #f4c04a; }
+  .listItem[draggable="true"] { cursor: grab; }
+  .listItem.dragging { opacity: 0.4; }
+  .listItem .dragHandle { color: #666; margin-right: 8px; cursor: grab; user-select: none; }
+
+  .sliderRow { margin-bottom: 12px; }
+  .sliderRow label { display: flex; justify-content: space-between; font-size: 13px; color: #ccc; margin-bottom: 4px; }
+  .sliderRow input[type="range"] { width: 100%; }
+  .sliderRow .val { color: #f4c04a; font-weight: 600; }
+  .colorRow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .colorRow input[type="color"] { width: 44px; height: 32px; border: none; background: none; padding: 0; }
+  .colorRow label { font-size: 13px; color: #ccc; }
+  .checkRow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #ccc; margin-bottom: 10px; }
+  .subPanel { border-top: 1px solid #2a2d38; padding-top: 12px; margin-top: 12px; }
 </style>
 </head>
 <body>
 
-<div id="canvas">
+<!-- ===== Sign-in gate: control stays locked until you sign in ===== -->
+<div id="loginGate" style="position:fixed; inset:0; z-index:1000; background:#14161c; display:flex; align-items:center; justify-content:center;">
+  <div class="panel" style="margin-top:0; width:340px;">
+    <h2>Sign in to control the overlay</h2>
+    <input id="loginEmail" type="text" placeholder="Email" autocomplete="username">
+    <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" style="width:100%; box-sizing:border-box; background:#0f1015; color:#fff; border:1px solid #444; border-radius:8px; padding:10px; font-size:14px; margin-bottom:8px;">
+    <button id="loginBtn" class="small">Sign in</button>
+    <div id="loginError" style="font-size:12px; color:#ff8080; margin-top:8px;"></div>
+  </div>
+</div>
 
-  <div id="bgLayer" style="display:none;"><img id="bgImage" src="" alt=""></div>
 
-  <div id="contentZone">
-    <div id="contentInner">
-      <div id="cardWrap" style="display:none;"><img id="cardImg" src="" alt="Magic card"></div>
-      <div id="bulletWrap" style="display:none;">
-        <div id="slideHeader" style="display:none;"></div>
-        <ul id="bulletList"></ul>
-      </div>
-      <div id="imageWrap" style="display:none;"><img id="customImg" src="" alt="Uploaded image"></div>
-      <div id="pairWrap" style="display:none;">
-        <div id="pairHeader" style="display:none;"></div>
-        <div id="pairCards">
-          <div class="pairSlot">
-            <img id="pairImg1" src="" alt="Magic card 1">
-            <div id="pairLoading1" class="pairLoading" style="display:none;"></div>
-          </div>
-          <div class="pairSlot">
-            <img id="pairImg2" src="" alt="Magic card 2">
-            <div id="pairLoading2" class="pairLoading" style="display:none;"></div>
-          </div>
-        </div>
-      </div>
-      <div id="groupWrap" style="display:none;">
-        <div id="groupHeader" style="display:none;"></div>
-        <div id="groupCardsRow"></div>
-      </div>
+<h1>Podcast Overlay Control</h1>
+<div id="status">connecting...</div>
+<div style="margin-bottom:16px;"><button id="signOutBtn" class="small">Sign out</button></div>
+<div style="margin-bottom:16px;">
+  <div style="font-size:12px; color:#999; margin-bottom:6px;">Which overlay are you editing?</div>
+  <button id="pickOverlay1" class="small">Overlay 1 (overlay.html)</button>
+  <button id="pickOverlay2" class="small">Overlay 2 (overlay2.html)</button>
+  <div id="overlayChoiceLabel" style="font-size:13px; font-weight:bold; color:#f4c04a; margin-top:6px;"></div>
+</div>
+
+
+<div id="preview">
+  <span class="label">Now showing</span>
+  <span id="previewText">—</span>
+</div>
+
+<div class="row">
+  <button id="btnCards" class="mode">Cards</button>
+  <button id="btnSlides" class="mode">Slides</button>
+  <button id="btnImages" class="mode">Images</button>
+  <button id="btnPairs" class="mode">Pairs</button>
+</div>
+
+<div class="row">
+  <button id="btnPrev" class="big">&larr; Prev</button>
+  <button id="btnNext" class="big">Next &rarr;</button>
+</div>
+
+<div class="row">
+  <button id="btnHide" class="danger">Hide overlay</button>
+</div>
+
+<!-- ===== Profiles ===== -->
+<div class="panel">
+  <h2>Profiles</h2>
+  <p style="font-size:12px; color:#999; margin:0 0 10px;">A profile is a full snapshot of everything: cards, groups, slides, images, pairs, headers, secondary slot, background, styles and layout. Save your setup, build something totally different, and switch back whenever you want.</p>
+  <div id="activeProfileLabel" style="font-size:13px; color:#f4c04a; margin-bottom:8px;">No profile loaded</div>
+  <select id="profileSelect"><option value="">(no saved profiles)</option></select>
+  <button id="loadProfileBtn" class="small">Load</button>
+  <button id="updateProfileBtn" class="small">Save changes to this profile</button>
+  <button id="deleteProfileBtn" class="small danger">Delete</button>
+
+  <div class="subPanel">
+    <h3>New profile</h3>
+    <input id="newProfileName" type="text" placeholder="Profile name, e.g. Podcast Ep 12">
+    <button id="saveAsProfileBtn" class="small">Save current setup as new profile</button>
+    <button id="blankProfileBtn" class="small">Create blank profile</button>
+    <div class="checkRow" style="margin-top:8px;"><input id="blankKeepLayout" type="checkbox" checked> Blank profile keeps current layout &amp; text style</div>
+  </div>
+  <div id="profileStatus" style="font-size:12px; color:#999; margin-top:8px;"></div>
+</div>
+
+<!-- ===== Card list editor ===== -->
+<div class="panel">
+  <h2>Cards</h2>
+
+  <div class="row" style="justify-content:flex-start; margin-bottom:14px;">
+    <button id="cardAddModeSingle" class="small mode active">Single card</button>
+    <button id="cardAddModeGroup" class="small mode">Card group</button>
+  </div>
+
+  <div id="cardAddSingleForm">
+    <input id="newCardInput" type="text" placeholder="Card name, e.g. Sol Ring">
+    <button id="addCardBtn" class="small">Add card</button>
+
+    <div class="subPanel">
+      <h3>Or add by set + collector number</h3>
+      <select id="setSelect"><option>Loading sets...</option></select>
+      <input id="newCardNumberInput" type="text" placeholder="Collector number, e.g. 142">
+      <button id="addCardByNumberBtn" class="small">Add by number</button>
+      <div id="cardByNumberStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+
+      <h3>Or paste a list of numbers (same set, one per line)</h3>
+      <textarea id="bulkCardNumbers" rows="4" placeholder="142&#10;143&#10;144"></textarea>
+      <button id="addBulkCardsBtn" class="small">Add all</button>
+      <div id="bulkCardStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
     </div>
   </div>
 
-  <div id="headerZone"><div id="headerInner"></div></div>
+  <div id="cardAddGroupForm" style="display:none;">
+    <p style="font-size:12px; color:#999; margin:0 0 10px;">Build a group of cards that all show together at once, with a shared header. When you're done adding cards to it, click "Save group" to add it to the list below as one entry.</p>
+    <p id="groupEditingNotice" style="display:none; font-size:12px; color:#f4c04a; margin:0 0 10px;">Editing an existing group — "Update group" will save changes in place.</p>
+    <input id="newGroupHeaderInput" type="text" placeholder="Header (optional), e.g. Combo Package">
 
-  <div id="secondaryZone">
-    <div id="secondaryInner"></div>
+    <input id="newGroupCardInput" type="text" placeholder="Card name, e.g. Sol Ring">
+    <button id="addToGroupBtn" class="small">Add card to group</button>
+
+    <div class="subPanel">
+      <h3>Or add to group by set + collector number</h3>
+      <select id="groupSetSelect"><option>Loading sets...</option></select>
+      <input id="newGroupCardNumberInput" type="text" placeholder="Collector number, e.g. 142">
+      <button id="addToGroupByNumberBtn" class="small">Add to group by number</button>
+      <div id="groupByNumberStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+
+      <h3>Or paste a list of numbers (same set, one per line)</h3>
+      <textarea id="bulkGroupCardNumbers" rows="4" placeholder="142&#10;143&#10;144"></textarea>
+      <button id="addBulkGroupCardsBtn" class="small">Add all to group</button>
+      <div id="bulkGroupCardStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+    </div>
+
+    <h3>Cards in this group</h3>
+    <div id="pendingGroupListUI"></div>
+    <button id="saveGroupBtn" class="small">Save group</button>
+    <button id="clearGroupBtn" class="small danger">Clear group</button>
   </div>
 
-  <div id="cam1Box" class="camBox"></div>
-  <div class="namePlate" id="cam1Name"></div>
+  <div id="cardListUI" style="margin-top:10px;"></div>
+</div>
 
-  <div id="cam2Box" class="camBox"></div>
-  <div class="namePlate" id="cam2Name"></div>
+<!-- ===== Topic header ===== -->
+<div class="panel">
+  <h2>Topic Header</h2>
+  <p style="font-size:12px; color:#999; margin:0 0 10px;">An optional title pinned at the top of the screen, independent of the Cards/Slides/Images mode. Add your topics, then click Show to keep one up for as long as you're on that topic.</p>
+  <input id="newHeaderInput" type="text" placeholder="Header text, e.g. Arena Direct Strategy">
+  <button id="addHeaderBtn" class="small">Add header</button>
+  <button id="hideHeaderBtn" class="small danger">Hide header</button>
+  <div id="headerListUI" style="margin-top:10px;"></div>
+</div>
 
+<!-- ===== Secondary card slot ===== -->
+<div class="panel">
+  <h2>Secondary Card Slot</h2>
+  <p style="font-size:12px; color:#999; margin:0 0 10px;">Always visible (independent of Cards/Slides/Images/Pairs mode above). Shows every card in this list at once — usually just one, but add as many as you want.</p>
+  <input id="newSecondaryCardInput" type="text" placeholder="Card name, e.g. Sol Ring">
+  <button id="addSecondaryCardBtn" class="small">Add card</button>
+
+  <div class="subPanel">
+    <h3>Or add by set + collector number</h3>
+    <select id="secondarySetSelect"><option>Loading sets...</option></select>
+    <input id="newSecondaryCardNumberInput" type="text" placeholder="Collector number, e.g. 142">
+    <button id="addSecondaryCardByNumberBtn" class="small">Add by number</button>
+    <div id="secondaryCardByNumberStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+
+    <h3>Or paste a list of numbers (same set, one per line)</h3>
+    <textarea id="bulkSecondaryCardNumbers" rows="4" placeholder="142&#10;143&#10;144"></textarea>
+    <button id="addBulkSecondaryCardsBtn" class="small">Add all</button>
+    <div id="bulkSecondaryCardStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+  </div>
+
+  <div id="secondaryCardListUI" style="margin-top:10px;"></div>
+</div>
+
+<!-- ===== Card pairs editor ===== -->
+<div class="panel">
+  <h2>Card Pairs (side by side)</h2>
+  <input id="newPairHeaderInput" type="text" placeholder="Header (optional), e.g. Combo Piece">
+  <input id="newPairCard1Input" type="text" placeholder="First card name">
+  <input id="newPairCard2Input" type="text" placeholder="Second card name">
+  <button id="addPairBtn" class="small">Add pair</button>
+  <div id="pairListUI" style="margin-top:10px;"></div>
+</div>
+
+<!-- ===== Custom image uploader ===== -->
+<div class="panel">
+  <h2>Images</h2>
+  <input id="newImageInput" type="file" accept="image/png, image/jpeg">
+  <input id="newImageLabel" type="text" placeholder="Label (optional), e.g. Deck list">
+  <button id="addImageBtn" class="small">Add image</button>
+  <div id="imageUploadStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+  <div id="imageListUI"></div>
+</div>
+
+<!-- ===== Slides editor ===== -->
+<div class="panel">
+  <h2>Slides (bullet points)</h2>
+  <input id="newSlideHeaderInput" type="text" placeholder="Header (optional), e.g. Host 1">
+  <textarea id="newSlideInput" rows="4" placeholder="One bullet per line, e.g.&#10;Playing since 2015&#10;Prefers aggro decks"></textarea>
+  <button id="addSlideBtn" class="small">Add slide</button>
+  <div id="slideListUI" style="margin-top:10px;"></div>
+</div>
+
+<!-- ===== Slide text style ===== -->
+<div class="panel">
+  <h2>Slide Text Style</h2>
+  <div class="colorRow">
+    <input id="styleTextColor" type="color" value="#ffffff">
+    <label>Text color</label>
+  </div>
+  <div class="colorRow">
+    <input id="styleAccentColor" type="color" value="#f4c04a">
+    <label>Accent color (header + bullet dots)</label>
+  </div>
+  <select id="styleFontFamily">
+    <option value="'Segoe UI', Arial, sans-serif">Segoe UI (default)</option>
+    <option value="Georgia, serif">Georgia (serif)</option>
+    <option value="'Courier New', monospace">Courier New (mono)</option>
+    <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+    <option value="Impact, sans-serif">Impact</option>
+    <option value="Verdana, sans-serif">Verdana</option>
+  </select>
+  <div class="checkRow"><input id="styleBold" type="checkbox"> Bold bullet text</div>
+  <button id="applyStyleBtn" class="small">Apply style</button>
+</div>
+
+<!-- ===== Background image ===== -->
+<div class="panel">
+  <h2>Background Image</h2>
+  <input id="newBgInput" type="file" accept="image/png, image/jpeg">
+  <button id="setBgBtn" class="small">Set background</button>
+  <div id="bgUploadStatus" style="font-size:12px; color:#999; margin-bottom:6px;"></div>
+  <div class="checkRow"><input id="bgEnabled" type="checkbox"> Show background</div>
+  <div class="sliderRow">
+    <label>Blur <span class="val" id="bgBlurVal">0px</span></label>
+    <input id="bgBlur" type="range" min="0" max="40" value="0">
+  </div>
+  <button id="removeBgBtn" class="small">Remove background</button>
+</div>
+
+<!-- ===== Layout: position, size, and style for content + both webcams ===== -->
+<div class="panel">
+  <h2>Layout (1920x1080 canvas)</h2>
+
+  <h3>Content zone (cards / slides / images)</h3>
+  <div class="sliderRow">
+    <label>Center X <span class="val" id="contentXVal">650</span></label>
+    <input id="contentX" type="range" min="0" max="1920" value="650">
+  </div>
+  <div class="sliderRow">
+    <label>Center Y <span class="val" id="contentYVal">540</span></label>
+    <input id="contentY" type="range" min="0" max="1080" value="540">
+  </div>
+  <div class="sliderRow">
+    <label>Overall size <span class="val" id="contentScaleVal">100%</span></label>
+    <input id="contentScale" type="range" min="50" max="200" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Single card size <span class="val" id="contentScaleCardVal">100%</span></label>
+    <input id="contentScaleCard" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Card group size, 1–2 cards <span class="val" id="contentScaleGroupOf2Val">100%</span></label>
+    <input id="contentScaleGroupOf2" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Card group size, 3–4 cards <span class="val" id="contentScaleGroupOf34Val">100%</span></label>
+    <input id="contentScaleGroupOf34" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Card group size, 5–6 cards <span class="val" id="contentScaleGroupOf56Val">100%</span></label>
+    <input id="contentScaleGroupOf56" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Card group size, 7+ cards <span class="val" id="contentScaleGroupOf7Val">100%</span></label>
+    <input id="contentScaleGroupOf7" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="colorRow">
+    <input id="groupHeaderColor" type="color" value="#f4c04a">
+    <label>Card group header color</label>
+  </div>
+  <div class="checkRow"><input id="groupHeaderBgEnabled" type="checkbox"> Card group header background</div>
+  <div class="colorRow">
+    <input id="groupHeaderBgColor" type="color" value="#0a0c14">
+    <label>Card group header background color</label>
+  </div>
+  <div class="sliderRow">
+    <label>Card group header background opacity <span class="val" id="groupHeaderBgOpacityVal">85%</span></label>
+    <input id="groupHeaderBgOpacity" type="range" min="0" max="100" value="85">
+  </div>
+  <div class="sliderRow">
+    <label>Card pair size <span class="val" id="contentScalePairVal">100%</span></label>
+    <input id="contentScalePair" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Image size <span class="val" id="contentScaleImageVal">100%</span></label>
+    <input id="contentScaleImage" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="sliderRow">
+    <label>Slide size <span class="val" id="contentScaleSlideVal">100%</span></label>
+    <input id="contentScaleSlide" type="range" min="30" max="300" value="100">
+  </div>
+  <div class="checkRow"><input id="contentSlideBgEnabled" type="checkbox"> Show background for slides</div>
+  <div class="colorRow">
+    <input id="contentSlideBgColor" type="color" value="#0a0c14">
+    <label>Slides background color</label>
+  </div>
+  <div class="sliderRow">
+    <label>Slides background opacity <span class="val" id="contentSlideBgOpacityVal">85%</span></label>
+    <input id="contentSlideBgOpacity" type="range" min="0" max="100" value="85">
+  </div>
+  <div class="checkRow"><input id="contentImageBgEnabled" type="checkbox"> Show background for images</div>
+  <div class="colorRow">
+    <input id="contentImageBgColor" type="color" value="#0a0c14">
+    <label>Images background color</label>
+  </div>
+  <div class="sliderRow">
+    <label>Images background opacity <span class="val" id="contentImageBgOpacityVal">85%</span></label>
+    <input id="contentImageBgOpacity" type="range" min="0" max="100" value="85">
+  </div>
+  <div class="sliderRow">
+    <label>Corner roundness <span class="val" id="contentRadiusVal">20px</span></label>
+    <input id="contentRadius" type="range" min="0" max="60" value="20">
+  </div>
+  <button id="resetContentBtn" class="small">Reset content layout</button>
+
+  <div class="subPanel">
+    <h3>Topic Header</h3>
+    <div class="sliderRow">
+      <label>Center X <span class="val" id="headerXVal">960</span></label>
+      <input id="headerX" type="range" min="0" max="1920" value="960">
+    </div>
+    <div class="sliderRow">
+      <label>Center Y <span class="val" id="headerYVal">60</span></label>
+      <input id="headerY" type="range" min="0" max="1080" value="60">
+    </div>
+    <div class="sliderRow">
+      <label>Size <span class="val" id="headerScaleVal">100%</span></label>
+      <input id="headerScale" type="range" min="30" max="300" value="100">
+    </div>
+    <div class="sliderRow">
+      <label>Text size <span class="val" id="headerFontSizeVal">44px</span></label>
+      <input id="headerFontSize" type="range" min="16" max="120" value="44">
+    </div>
+    <div class="colorRow">
+      <input id="headerTextColor" type="color" value="#ffffff">
+      <label>Text color</label>
+    </div>
+    <div class="checkRow"><input id="headerBgEnabled" type="checkbox"> Show background</div>
+    <div class="colorRow">
+      <input id="headerBgColor" type="color" value="#0a0c14">
+      <label>Background color</label>
+    </div>
+    <div class="sliderRow">
+      <label>Background opacity <span class="val" id="headerBgOpacityVal">85%</span></label>
+      <input id="headerBgOpacity" type="range" min="0" max="100" value="85">
+    </div>
+    <div class="sliderRow">
+      <label>Corner roundness <span class="val" id="headerRadiusVal">14px</span></label>
+      <input id="headerRadius" type="range" min="0" max="60" value="14">
+    </div>
+    <button id="resetHeaderBtn" class="small">Reset header layout</button>
+  </div>
+
+  <div class="subPanel">
+    <h3>Secondary Card Slot</h3>
+    <div class="checkRow"><input id="secondaryEnabled" type="checkbox"> Show secondary slot</div>
+    <div class="sliderRow">
+      <label>Center X <span class="val" id="secondaryXVal">300</span></label>
+      <input id="secondaryX" type="range" min="0" max="1920" value="300">
+    </div>
+    <div class="sliderRow">
+      <label>Center Y <span class="val" id="secondaryYVal">950</span></label>
+      <input id="secondaryY" type="range" min="0" max="1080" value="950">
+    </div>
+    <div class="sliderRow">
+      <label>Size <span class="val" id="secondaryScaleVal">60%</span></label>
+      <input id="secondaryScale" type="range" min="20" max="200" value="60">
+    </div>
+    <div class="sliderRow">
+      <label>Gap between cards <span class="val" id="secondaryGapVal">16px</span></label>
+      <input id="secondaryGap" type="range" min="0" max="80" value="16">
+    </div>
+    <div class="checkRow"><input id="secondaryBgEnabled" type="checkbox"> Show background</div>
+    <div class="colorRow">
+      <input id="secondaryBgColor" type="color" value="#0a0c14">
+      <label>Background color</label>
+    </div>
+    <div class="sliderRow">
+      <label>Background opacity <span class="val" id="secondaryBgOpacityVal">85%</span></label>
+      <input id="secondaryBgOpacity" type="range" min="0" max="100" value="85">
+    </div>
+    <div class="sliderRow">
+      <label>Corner roundness <span class="val" id="secondaryRadiusVal">16px</span></label>
+      <input id="secondaryRadius" type="range" min="0" max="60" value="16">
+    </div>
+    <button id="resetSecondaryBtn" class="small">Reset secondary slot layout</button>
+  </div>
+
+  <div class="subPanel">
+    <h3>Webcam Frame 1</h3>
+    <div class="checkRow"><input id="cam1Enabled" type="checkbox"> Show frame 1 (leave unchecked to keep this spot blank)</div>
+    <input id="cam1NameInput" type="text" placeholder="Name, e.g. Alex">
+    <div class="sliderRow">
+      <label>Center X <span class="val" id="cam1XVal">1670</span></label>
+      <input id="cam1X" type="range" min="0" max="1920" value="1670">
+    </div>
+    <div class="sliderRow">
+      <label>Center Y <span class="val" id="cam1YVal">280</span></label>
+      <input id="cam1Y" type="range" min="0" max="1080" value="280">
+    </div>
+    <div class="sliderRow">
+      <label>Width <span class="val" id="cam1WVal">500</span></label>
+      <input id="cam1W" type="range" min="100" max="1000" value="500">
+    </div>
+    <div class="sliderRow">
+      <label>Height <span class="val" id="cam1HVal">320</span></label>
+      <input id="cam1H" type="range" min="100" max="800" value="320">
+    </div>
+    <div class="sliderRow">
+      <label>Corner roundness <span class="val" id="cam1RVal">18px</span></label>
+      <input id="cam1R" type="range" min="0" max="100" value="18">
+    </div>
+    <div class="colorRow">
+      <input id="cam1BorderColor" type="color" value="#f4c04a">
+      <label>Border color</label>
+    </div>
+    <div class="sliderRow">
+      <label>Border width <span class="val" id="cam1BorderWidthVal">4px</span></label>
+      <input id="cam1BorderWidth" type="range" min="0" max="30" value="4">
+    </div>
+    <div class="checkRow"><input id="cam1NameplateEnabled" type="checkbox" checked> Show nameplate</div>
+    <div class="sliderRow">
+      <label>Nameplate left/right offset <span class="val" id="cam1NameOffsetXVal">0px</span></label>
+      <input id="cam1NameOffsetX" type="range" min="-400" max="400" value="0">
+    </div>
+    <div class="sliderRow">
+      <label>Nameplate offset below box <span class="val" id="cam1NameOffsetVal">14px</span></label>
+      <input id="cam1NameOffset" type="range" min="-50" max="150" value="14">
+    </div>
+    <div class="sliderRow">
+      <label>Nameplate text size <span class="val" id="cam1NameFontSizeVal">16px</span></label>
+      <input id="cam1NameFontSize" type="range" min="10" max="40" value="16">
+    </div>
+    <div class="colorRow">
+      <input id="cam1NameTextColor" type="color" value="#ffffff">
+      <label>Nameplate text color</label>
+    </div>
+    <div class="checkRow"><input id="cam1NameBgEnabled" type="checkbox" checked> Nameplate background</div>
+    <div class="colorRow">
+      <input id="cam1NameBgColor" type="color" value="#0a0c14">
+      <label>Nameplate background color</label>
+    </div>
+    <div class="sliderRow">
+      <label>Nameplate background opacity <span class="val" id="cam1NameBgOpacityVal">82%</span></label>
+      <input id="cam1NameBgOpacity" type="range" min="0" max="100" value="82">
+    </div>
+    <button id="resetCam1Btn" class="small">Reset frame 1 layout</button>
+  </div>
+
+  <div class="subPanel">
+    <h3>Webcam Frame 2</h3>
+    <div class="checkRow"><input id="cam2Enabled" type="checkbox"> Show frame 2 (leave unchecked to keep this spot blank)</div>
+    <input id="cam2NameInput" type="text" placeholder="Name, e.g. Jordan">
+    <div class="sliderRow">
+      <label>Center X <span class="val" id="cam2XVal">1670</span></label>
+      <input id="cam2X" type="range" min="0" max="1920" value="1670">
+    </div>
+    <div class="sliderRow">
+      <label>Center Y <span class="val" id="cam2YVal">700</span></label>
+      <input id="cam2Y" type="range" min="0" max="1080" value="700">
+    </div>
+    <div class="sliderRow">
+      <label>Width <span class="val" id="cam2WVal">500</span></label>
+      <input id="cam2W" type="range" min="100" max="1000" value="500">
+    </div>
+    <div class="sliderRow">
+      <label>Height <span class="val" id="cam2HVal">320</span></label>
+      <input id="cam2H" type="range" min="100" max="800" value="320">
+    </div>
+    <div class="sliderRow">
+      <label>Corner roundness <span class="val" id="cam2RVal">18px</span></label>
+      <input id="cam2R" type="range" min="0" max="100" value="18">
+    </div>
+    <div class="colorRow">
+      <input id="cam2BorderColor" type="color" value="#f4c04a">
+      <label>Border color</label>
+    </div>
+    <div class="sliderRow">
+      <label>Border width <span class="val" id="cam2BorderWidthVal">4px</span></label>
+      <input id="cam2BorderWidth" type="range" min="0" max="30" value="4">
+    </div>
+    <div class="checkRow"><input id="cam2NameplateEnabled" type="checkbox" checked> Show nameplate</div>
+    <div class="sliderRow">
+      <label>Nameplate left/right offset <span class="val" id="cam2NameOffsetXVal">0px</span></label>
+      <input id="cam2NameOffsetX" type="range" min="-400" max="400" value="0">
+    </div>
+    <div class="sliderRow">
+      <label>Nameplate offset below box <span class="val" id="cam2NameOffsetVal">14px</span></label>
+      <input id="cam2NameOffset" type="range" min="-50" max="150" value="14">
+    </div>
+    <div class="sliderRow">
+      <label>Nameplate text size <span class="val" id="cam2NameFontSizeVal">16px</span></label>
+      <input id="cam2NameFontSize" type="range" min="10" max="40" value="16">
+    </div>
+    <div class="colorRow">
+      <input id="cam2NameTextColor" type="color" value="#ffffff">
+      <label>Nameplate text color</label>
+    </div>
+    <div class="checkRow"><input id="cam2NameBgEnabled" type="checkbox" checked> Nameplate background</div>
+    <div class="colorRow">
+      <input id="cam2NameBgColor" type="color" value="#0a0c14">
+      <label>Nameplate background color</label>
+    </div>
+    <div class="sliderRow">
+      <label>Nameplate background opacity <span class="val" id="cam2NameBgOpacityVal">82%</span></label>
+      <input id="cam2NameBgOpacity" type="range" min="0" max="100" value="82">
+    </div>
+    <button id="resetCam2Btn" class="small">Reset frame 2 layout</button>
+  </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
 <script>
   /* =========================================================
@@ -230,414 +617,906 @@
   /* ========================================================= */
 
   firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  // Reading is public (the overlay needs it); writing requires this sign-in.
+  const loginGate = document.getElementById('loginGate');
+  const loginEmail = document.getElementById('loginEmail');
+  const loginPassword = document.getElementById('loginPassword');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginError = document.getElementById('loginError');
+  auth.onAuthStateChanged((user) => {
+    loginGate.style.display = user ? 'none' : 'flex';
+  });
+  function doLogin() {
+    loginError.textContent = '';
+    auth.signInWithEmailAndPassword(loginEmail.value.trim(), loginPassword.value)
+      .catch((e) => { loginError.textContent = e.message; });
+  }
+  loginBtn.addEventListener('click', doLogin);
+  loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('signOutBtn').addEventListener('click', () => auth.signOut());
   const db = firebase.database();
-  // Which database branch this page reads. overlay.html uses 'overlay'; overlay2.html uses 'overlay2'.
-  const ROOT = 'overlay';
+  // Which overlay this control page edits: 1 -> 'overlay' (overlay.html), 2 -> 'overlay2' (overlay2.html).
+  // Pick with the switcher at the top, or open control.html?overlay=2 directly (handy for two windows).
+  let overlayChoice = '1';
+  try {
+    const p = new URLSearchParams(location.search).get('overlay');
+    overlayChoice = (p === '1' || p === '2') ? p : (localStorage.getItem('controlOverlay') === '2' ? '2' : '1');
+  } catch (e) {}
+  const ROOT = overlayChoice === '2' ? 'overlay2' : 'overlay';
+  document.title = 'Overlay ' + overlayChoice + ' - Control Panel';
+  const stateRef = db.ref(ROOT + '/state');
+  const cardsRef = db.ref(ROOT + '/cards');
+  const slidesRef = db.ref(ROOT + '/slides');
+  const imagesRef = db.ref(ROOT + '/images');
+  const pairsRef = db.ref(ROOT + '/pairs');
+  const styleRef = db.ref(ROOT + '/style');
+  const layoutRef = db.ref(ROOT + '/layout');
 
-  /* ============ Content zone (cards / slides / images) ============ */
-  const contentZone = document.getElementById('contentZone');
-  const contentInner = document.getElementById('contentInner');
-  const cardWrap = document.getElementById('cardWrap');
-  const bulletWrap = document.getElementById('bulletWrap');
-  const cardImg = document.getElementById('cardImg');
-  const bulletList = document.getElementById('bulletList');
-  const slideHeader = document.getElementById('slideHeader');
-  const imageWrap = document.getElementById('imageWrap');
-  const customImg = document.getElementById('customImg');
-  const pairWrap = document.getElementById('pairWrap');
-  const pairHeader = document.getElementById('pairHeader');
-  const pairCards = document.getElementById('pairCards');
-  const pairImg1 = document.getElementById('pairImg1');
-  const pairImg2 = document.getElementById('pairImg2');
-  const pairLoading1 = document.getElementById('pairLoading1');
-  const pairLoading2 = document.getElementById('pairLoading2');
-  const groupWrap = document.getElementById('groupWrap');
-  const groupHeader = document.getElementById('groupHeader');
-  const groupCardsRow = document.getElementById('groupCardsRow');
-  const secondaryZone = document.getElementById('secondaryZone');
-  const headerZone = document.getElementById('headerZone');
-  const headerInner = document.getElementById('headerInner');
-  const secondaryInner = document.getElementById('secondaryInner');
+  const statusEl = document.getElementById('status');
+  const previewText = document.getElementById('previewText');
+  const btnCards = document.getElementById('btnCards');
+  const btnSlides = document.getElementById('btnSlides');
+  const btnImages = document.getElementById('btnImages');
+  const btnPairs = document.getElementById('btnPairs');
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  const btnHide = document.getElementById('btnHide');
+  const cardListUI = document.getElementById('cardListUI');
+  const slideListUI = document.getElementById('slideListUI');
+  const imageListUI = document.getElementById('imageListUI');
+  const pairListUI = document.getElementById('pairListUI');
+  const newCardInput = document.getElementById('newCardInput');
+  const newSlideInput = document.getElementById('newSlideInput');
+  const newSlideHeaderInput = document.getElementById('newSlideHeaderInput');
+  const newImageInput = document.getElementById('newImageInput');
+  const newImageLabel = document.getElementById('newImageLabel');
+  const newPairHeaderInput = document.getElementById('newPairHeaderInput');
+  const newPairCard1Input = document.getElementById('newPairCard1Input');
+  const newPairCard2Input = document.getElementById('newPairCard2Input');
+  const addCardBtn = document.getElementById('addCardBtn');
+  const addSlideBtn = document.getElementById('addSlideBtn');
+  const addImageBtn = document.getElementById('addImageBtn');
+  const addPairBtn = document.getElementById('addPairBtn');
+  const imageUploadStatus = document.getElementById('imageUploadStatus');
+  const styleTextColor = document.getElementById('styleTextColor');
+  const styleAccentColor = document.getElementById('styleAccentColor');
+  const styleFontFamily = document.getElementById('styleFontFamily');
+  const styleBold = document.getElementById('styleBold');
+  const applyStyleBtn = document.getElementById('applyStyleBtn');
 
+  function slideLabel(entry) {
+    if (Array.isArray(entry)) return entry[0] || '';
+    return entry.header || (entry.bullets && entry.bullets[0]) || '';
+  }
+
+  function pairLabel(entry) {
+    return entry.header || [entry.card1, entry.card2].filter(Boolean).join(' + ') || 'Pair';
+  }
+
+  function cardLabel(entry) {
+    if (typeof entry === 'string') return entry;
+    if (Array.isArray(entry.cards)) {
+      const names = entry.cards.map(cardLabel).join(', ');
+      return (entry.header ? '[Group] ' + entry.header + ': ' : '[Group] ') + names;
+    }
+    return (entry.name || 'Unknown card') + '  (' + entry.set.toUpperCase() + ' #' + entry.number + ')';
+  }
+
+  let mode = 'cards';
+  let cardIndex = 0;
+  let slideIndex = 0;
+  let imageIndex = 0;
+  let pairIndex = 0;
   let CARD_LIST = [];
   let SLIDES = [];
   let IMAGES = [];
   let PAIRS = [];
-  let SECONDARY_CARDS = [];
-  let currentState = null;
 
-  const cardImageCache = {};
+  db.ref('.info/connected').on('value', (snap) => {
+    statusEl.textContent = snap.val() ? 'connected' : 'disconnected — check your config';
+  });
 
-  function cardCacheKey(entry) {
-    if (typeof entry === 'string') return 'name:' + entry;
-    return 'setnum:' + entry.set + '/' + entry.number;
+  function updatePreview() {
+    btnCards.classList.toggle('active', mode === 'cards');
+    btnSlides.classList.toggle('active', mode === 'slides');
+    btnImages.classList.toggle('active', mode === 'images');
+    btnPairs.classList.toggle('active', mode === 'pairs');
+    if (mode === 'cards' && CARD_LIST[cardIndex] !== undefined) {
+      previewText.textContent = cardLabel(CARD_LIST[cardIndex]) + '  (' + (cardIndex + 1) + '/' + CARD_LIST.length + ')';
+    } else if (mode === 'slides' && SLIDES[slideIndex] !== undefined) {
+      previewText.textContent = slideLabel(SLIDES[slideIndex]) + '  (' + (slideIndex + 1) + '/' + SLIDES.length + ')';
+    } else if (mode === 'images' && IMAGES[imageIndex] !== undefined) {
+      previewText.textContent = (IMAGES[imageIndex].label || 'Image') + '  (' + (imageIndex + 1) + '/' + IMAGES.length + ')';
+    } else if (mode === 'pairs' && PAIRS[pairIndex] !== undefined) {
+      previewText.textContent = pairLabel(PAIRS[pairIndex]) + '  (' + (pairIndex + 1) + '/' + PAIRS.length + ')';
+    } else {
+      previewText.textContent = '—';
+    }
   }
 
-  function cardDisplayName(entry) {
-    return typeof entry === 'string' ? entry : (entry.name || (entry.set + ' #' + entry.number));
+  function push() {
+    stateRef.set({ mode, cardIndex, slideIndex, imageIndex, pairIndex, ts: Date.now() });
+    updatePreview();
   }
 
-  async function fetchCardImage(entry) {
-    const key = cardCacheKey(entry);
-    if (cardImageCache[key]) return cardImageCache[key];
-    const url = typeof entry === 'string'
-      ? 'https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(entry)
-      : 'https://api.scryfall.com/cards/' + encodeURIComponent(entry.set) + '/' + encodeURIComponent(entry.number);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('not found');
-    const data = await res.json();
-    const uris = data.image_uris || (data.card_faces && data.card_faces[0].image_uris);
-    const img = uris ? (uris.png || uris.large || uris.normal) : null;
-    if (!img) throw new Error('no image');
-    cardImageCache[key] = img;
-    return img;
-  }
+  btnCards.addEventListener('click', () => { mode = 'cards'; push(); });
+  btnSlides.addEventListener('click', () => { mode = 'slides'; push(); });
+  btnImages.addEventListener('click', () => { mode = 'images'; push(); });
+  btnPairs.addEventListener('click', () => { mode = 'pairs'; push(); });
 
-  function preloadNewCards(list) {
-    list.forEach(entry => {
-      const key = cardCacheKey(entry);
-      if (!cardImageCache[key]) {
-        fetchCardImage(entry).catch(() => console.warn('Could not preload:', cardDisplayName(entry)));
+  btnNext.addEventListener('click', () => {
+    if (mode === 'cards' && CARD_LIST.length) cardIndex = (cardIndex + 1) % CARD_LIST.length;
+    else if (mode === 'slides' && SLIDES.length) slideIndex = (slideIndex + 1) % SLIDES.length;
+    else if (mode === 'images' && IMAGES.length) imageIndex = (imageIndex + 1) % IMAGES.length;
+    else if (mode === 'pairs' && PAIRS.length) pairIndex = (pairIndex + 1) % PAIRS.length;
+    push();
+  });
+
+  btnPrev.addEventListener('click', () => {
+    if (mode === 'cards' && CARD_LIST.length) cardIndex = (cardIndex - 1 + CARD_LIST.length) % CARD_LIST.length;
+    else if (mode === 'slides' && SLIDES.length) slideIndex = (slideIndex - 1 + SLIDES.length) % SLIDES.length;
+    else if (mode === 'images' && IMAGES.length) imageIndex = (imageIndex - 1 + IMAGES.length) % IMAGES.length;
+    else if (mode === 'pairs' && PAIRS.length) pairIndex = (pairIndex - 1 + PAIRS.length) % PAIRS.length;
+    push();
+  });
+
+  btnHide.addEventListener('click', () => {
+    stateRef.set({ mode: 'clear', ts: Date.now() });
+  });
+
+  // ===== Card list editor =====
+  let dragFromIndex = null;
+
+  function renderCardListUI() {
+    cardListUI.innerHTML = '';
+    CARD_LIST.forEach((entry, i) => {
+      const isObj = typeof entry !== 'string';
+      const row = document.createElement('div');
+      row.className = 'listItem' + (mode === 'cards' && i === cardIndex ? ' current' : '');
+      row.draggable = true;
+
+      const handle = document.createElement('span');
+      handle.textContent = '\u2630';
+      handle.style.flex = '0';
+      handle.style.marginRight = '8px';
+      handle.style.color = '#666';
+
+      const label = document.createElement('span');
+      label.textContent = cardLabel(entry);
+
+      const editInput = document.createElement('input');
+      editInput.type = 'text';
+      editInput.value = isObj ? '' : entry;
+      editInput.style.display = 'none';
+      editInput.style.flex = '1';
+      editInput.style.marginRight = '8px';
+      editInput.style.padding = '4px 6px';
+
+      const jumpBtn = document.createElement('button');
+      jumpBtn.className = 'small';
+      jumpBtn.textContent = 'Show';
+      jumpBtn.addEventListener('click', () => { mode = 'cards'; cardIndex = i; push(); });
+
+      row.appendChild(handle);
+      row.appendChild(label);
+      row.appendChild(editInput);
+      row.appendChild(jumpBtn);
+
+      // Editing in place only makes sense for plain name entries —
+      // set+number entries are re-added via the picker if they need to change.
+      const isGroup = entry && typeof entry === 'object' && Array.isArray(entry.cards);
+      if (!isObj) {
+        const editBtn = document.createElement('button');
+        editBtn.className = 'small';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', () => {
+          const editing = editInput.style.display !== 'none';
+          if (!editing) {
+            label.style.display = 'none';
+            editInput.style.display = 'inline-block';
+            editInput.value = CARD_LIST[i];
+            editInput.focus();
+            editInput.select();
+            editBtn.textContent = 'Save';
+          } else {
+            const newName = editInput.value.trim();
+            if (newName) {
+              const updated = CARD_LIST.slice();
+              updated[i] = newName;
+              cardsRef.set(updated);
+            } else {
+              label.style.display = '';
+              editInput.style.display = 'none';
+              editBtn.textContent = 'Edit';
+            }
+          }
+        });
+        editInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') editBtn.click();
+          if (e.key === 'Escape') {
+            label.style.display = '';
+            editInput.style.display = 'none';
+            editBtn.textContent = 'Edit';
+          }
+        });
+        row.appendChild(editBtn);
+      } else if (isGroup) {
+        const editGroupBtn = document.createElement('button');
+        editGroupBtn.className = 'small';
+        editGroupBtn.textContent = 'Edit group';
+        editGroupBtn.addEventListener('click', () => {
+          cardAddModeGroup.click();
+          newGroupHeaderInput.value = entry.header || '';
+          pendingGroupCards = (entry.cards || []).slice();
+          editingGroupIndex = i;
+          saveGroupBtn.textContent = 'Update group';
+          document.getElementById('groupEditingNotice').style.display = 'block';
+          renderPendingGroupListUI();
+          newGroupHeaderInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        row.appendChild(editGroupBtn);
       }
+
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        const updated = CARD_LIST.slice();
+        updated.splice(i, 1);
+        cardsRef.set(updated);
+      });
+      row.appendChild(delBtn);
+
+      row.addEventListener('dragstart', () => { dragFromIndex = i; row.classList.add('dragging'); });
+      row.addEventListener('dragend', () => { row.classList.remove('dragging'); dragFromIndex = null; });
+      row.addEventListener('dragover', (e) => e.preventDefault());
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (dragFromIndex === null || dragFromIndex === i) return;
+        const updated = CARD_LIST.slice();
+        const [moved] = updated.splice(dragFromIndex, 1);
+        updated.splice(i, 0, moved);
+        cardsRef.set(updated);
+      });
+
+      cardListUI.appendChild(row);
     });
   }
 
-  // Per-type sizing: overall scale x the multiplier for whatever is currently showing.
-  let contentKind = 'card';
-  let contentLayoutCache = {};
-  const KIND_KEYS = { card: 'scaleCard', groupA: 'scaleGroupOf2', groupB: 'scaleGroupOf34', groupC: 'scaleGroupOf56', groupD: 'scaleGroupOf7', pair: 'scalePair', image: 'scaleImage', slide: 'scaleSlide' };
-  function updateContentTransform() {
-    const c = contentLayoutCache;
-    const total = (c.scale != null ? c.scale : 1) * (c[KIND_KEYS[contentKind]] != null ? c[KIND_KEYS[contentKind]] : 1);
-    contentZone.style.transform = 'translate(-50%, -50%) scale(' + total + ')';
-    // Backgrounds exist only for slides and images; cards, groups and pairs never get one.
-    const prefix = contentKind === 'slide' ? 'slide' : (contentKind === 'image' ? 'image' : null);
-    if (prefix && c[prefix + 'BgEnabled']) {
-      const hex = (c[prefix + 'BgColor'] || '#0a0c14').replace('#', '');
-      const r = parseInt(hex.substring(0,2), 16);
-      const g = parseInt(hex.substring(2,4), 16);
-      const b = parseInt(hex.substring(4,6), 16);
-      const a = c[prefix + 'BgOpacity'] != null ? c[prefix + 'BgOpacity'] : 0.85;
-      contentInner.style.background = 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
-    } else {
-      contentInner.style.background = 'transparent';
+  addCardBtn.addEventListener('click', () => {
+    const name = newCardInput.value.trim();
+    if (!name) return;
+    cardsRef.set(CARD_LIST.concat([name]));
+    newCardInput.value = '';
+  });
+  newCardInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCardBtn.click(); });
+
+  // ===== Add by set + collector number =====
+  const setSelect = document.getElementById('setSelect');
+  const newCardNumberInput = document.getElementById('newCardNumberInput');
+  const addCardByNumberBtn = document.getElementById('addCardByNumberBtn');
+  const cardByNumberStatus = document.getElementById('cardByNumberStatus');
+  const secondarySetSelect = document.getElementById('secondarySetSelect');
+  const groupSetSelect = document.getElementById('groupSetSelect');
+
+  // Populate all set dropdowns live from Scryfall so they're always current —
+  // no hardcoded set list to go stale.
+  fetch('https://api.scryfall.com/sets')
+    .then(res => res.json())
+    .then(data => {
+      const sets = (data.data || [])
+        .filter(s => s.code && s.name)
+        .sort((a, b) => (b.released_at || '').localeCompare(a.released_at || ''));
+      [setSelect, secondarySetSelect, groupSetSelect].forEach(sel => {
+        sel.innerHTML = '';
+        sets.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.code;
+          opt.textContent = s.name + ' (' + s.code.toUpperCase() + ')';
+          sel.appendChild(opt);
+        });
+      });
+    })
+    .catch(() => {
+      [setSelect, secondarySetSelect, groupSetSelect].forEach(sel => {
+        sel.innerHTML = '<option>Could not load sets</option>';
+      });
+    });
+
+  // Shared helper: fetch a list of cards from one set, given collector numbers one per line.
+  // Returns { entries, failed } — entries is in the same order the numbers were pasted.
+  async function fetchCardsBulk(set, numbersText, statusEl) {
+    const numbers = numbersText.split('\n').map(s => s.trim()).filter(Boolean);
+    const entries = [];
+    const failed = [];
+    for (let i = 0; i < numbers.length; i++) {
+      const number = numbers[i];
+      if (statusEl) statusEl.textContent = 'Looking up ' + (i + 1) + ' of ' + numbers.length + '...';
+      try {
+        const res = await fetch('https://api.scryfall.com/cards/' + encodeURIComponent(set) + '/' + encodeURIComponent(number));
+        if (!res.ok) throw new Error('not found');
+        const data = await res.json();
+        entries.push({ set, number, name: data.name });
+      } catch (e) {
+        failed.push(number);
+      }
+      // Small delay to stay well within Scryfall's rate limit guidance
+      await new Promise(r => setTimeout(r, 80));
     }
-  }
-  function setContentKind(kind) { contentKind = kind; updateContentTransform(); }
-
-  function showContent() { contentInner.classList.add('visible'); }
-  function hideContent() { contentInner.classList.remove('visible'); }
-
-  function isGroupEntry(entry) {
-    return entry && typeof entry === 'object' && Array.isArray(entry.cards);
+    return { entries, failed };
   }
 
-  // Splits a group's card count into evenly-sized rows:
-  // 1-2 cards -> one row. 3 => 1+2, 4 => 2+2, 5 => 1+2+2, 6 => 2+2+2.
-  // 7-9 -> three rows (7 => 2+2+3, 8 => 2+3+3, 9 => 3+3+3).
-  function splitIntoRows(n) {
-    if (n <= 2) return [n];
-    if (n === 3) return [1, 2];
-    if (n === 4) return [2, 2];
-    if (n === 5) return [1, 2, 2];
-    if (n === 6) return [2, 2, 2];
-    const base = Math.floor(n / 3);
-    const extra = n % 3;
-    const sizes = [];
-    for (let i = 0; i < 3; i++) sizes.push(base + (i >= 3 - extra ? 1 : 0));
-    return sizes;
-  }
-
-  async function renderCard(index) {
-    const entry = CARD_LIST[index];
-    if (!entry) { hideContent(); return; }
-
-    if (isGroupEntry(entry)) {
-      await renderGroup(entry);
-      return;
-    }
-
-    setContentKind('card');
-    cardWrap.style.display = 'block';
-    bulletWrap.style.display = 'none';
-    imageWrap.style.display = 'none';
-    pairWrap.style.display = 'none';
-    groupWrap.style.display = 'none';
-    showContent();
+  addCardByNumberBtn.addEventListener('click', async () => {
+    const set = setSelect.value;
+    const number = newCardNumberInput.value.trim();
+    if (!set || !number) { cardByNumberStatus.textContent = 'Pick a set and enter a number.'; return; }
+    cardByNumberStatus.textContent = 'Looking up...';
     try {
-      const img = await fetchCardImage(entry);
-      cardWrap.innerHTML = '';
-      const im = document.createElement('img');
-      im.id = 'cardImg';
-      im.src = img;
-      cardWrap.appendChild(im);
+      const res = await fetch('https://api.scryfall.com/cards/' + encodeURIComponent(set) + '/' + encodeURIComponent(number));
+      if (!res.ok) throw new Error('Card not found');
+      const data = await res.json();
+      cardsRef.set(CARD_LIST.concat([{ set, number, name: data.name }]));
+      newCardNumberInput.value = '';
+      cardByNumberStatus.textContent = 'Added: ' + data.name;
+      setTimeout(() => { cardByNumberStatus.textContent = ''; }, 2500);
     } catch (e) {
-      cardWrap.innerHTML = '<div id="cardLoading">Card not found: ' + cardDisplayName(entry) + '</div>';
+      cardByNumberStatus.textContent = 'Not found. Check the set and number.';
     }
+  });
+  newCardNumberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCardByNumberBtn.click(); });
+
+  // Bulk paste — main Cards list
+  const bulkCardNumbers = document.getElementById('bulkCardNumbers');
+  const addBulkCardsBtn = document.getElementById('addBulkCardsBtn');
+  const bulkCardStatus = document.getElementById('bulkCardStatus');
+  addBulkCardsBtn.addEventListener('click', async () => {
+    const set = setSelect.value;
+    if (!set || !bulkCardNumbers.value.trim()) { bulkCardStatus.textContent = 'Pick a set and paste some numbers.'; return; }
+    addBulkCardsBtn.disabled = true;
+    const { entries, failed } = await fetchCardsBulk(set, bulkCardNumbers.value, bulkCardStatus);
+    if (entries.length) cardsRef.set(CARD_LIST.concat(entries));
+    bulkCardStatus.textContent = 'Added ' + entries.length + ' card(s).' + (failed.length ? ' Not found: ' + failed.join(', ') : '');
+    if (entries.length) bulkCardNumbers.value = '';
+    addBulkCardsBtn.disabled = false;
+  });
+
+  // ===== Card group builder (single header + multi-card, added as one entry) =====
+  const cardAddModeSingle = document.getElementById('cardAddModeSingle');
+  const cardAddModeGroup = document.getElementById('cardAddModeGroup');
+  const cardAddSingleForm = document.getElementById('cardAddSingleForm');
+  const cardAddGroupForm = document.getElementById('cardAddGroupForm');
+  const newGroupHeaderInput = document.getElementById('newGroupHeaderInput');
+  const newGroupCardInput = document.getElementById('newGroupCardInput');
+  const addToGroupBtn = document.getElementById('addToGroupBtn');
+  const newGroupCardNumberInput = document.getElementById('newGroupCardNumberInput');
+  const addToGroupByNumberBtn = document.getElementById('addToGroupByNumberBtn');
+  const groupByNumberStatus = document.getElementById('groupByNumberStatus');
+  const pendingGroupListUI = document.getElementById('pendingGroupListUI');
+  const saveGroupBtn = document.getElementById('saveGroupBtn');
+  const clearGroupBtn = document.getElementById('clearGroupBtn');
+
+  let pendingGroupCards = [];
+  let editingGroupIndex = null;
+
+  cardAddModeSingle.addEventListener('click', () => {
+    cardAddModeSingle.classList.add('active');
+    cardAddModeGroup.classList.remove('active');
+    cardAddSingleForm.style.display = '';
+    cardAddGroupForm.style.display = 'none';
+  });
+  cardAddModeGroup.addEventListener('click', () => {
+    cardAddModeGroup.classList.add('active');
+    cardAddModeSingle.classList.remove('active');
+    cardAddGroupForm.style.display = '';
+    cardAddSingleForm.style.display = 'none';
+  });
+
+  function renderPendingGroupListUI() {
+    pendingGroupListUI.innerHTML = '';
+    pendingGroupCards.forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.className = 'listItem';
+      const label = document.createElement('span');
+      label.textContent = cardLabel(entry);
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        pendingGroupCards.splice(i, 1);
+        renderPendingGroupListUI();
+      });
+      row.appendChild(label);
+      row.appendChild(delBtn);
+      pendingGroupListUI.appendChild(row);
+    });
   }
 
-  async function renderGroup(entry) {
-    // Separate size bar per group size: 1-2, 3-4, 5-6, 7+ cards.
-    const nCards = entry.cards.length;
-    setContentKind(nCards <= 2 ? 'groupA' : (nCards <= 4 ? 'groupB' : (nCards <= 6 ? 'groupC' : 'groupD')));
-    cardWrap.style.display = 'none';
-    bulletWrap.style.display = 'none';
-    imageWrap.style.display = 'none';
-    pairWrap.style.display = 'none';
-    groupWrap.style.display = 'block';
+  addToGroupBtn.addEventListener('click', () => {
+    const name = newGroupCardInput.value.trim();
+    if (!name) return;
+    pendingGroupCards.push(name);
+    newGroupCardInput.value = '';
+    renderPendingGroupListUI();
+  });
+  newGroupCardInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addToGroupBtn.click(); });
 
-    if (entry.header) {
-      groupHeader.textContent = entry.header;
-      groupHeader.style.display = 'block';
-    } else {
-      groupHeader.style.display = 'none';
+  addToGroupByNumberBtn.addEventListener('click', async () => {
+    const set = groupSetSelect.value;
+    const number = newGroupCardNumberInput.value.trim();
+    if (!set || !number) { groupByNumberStatus.textContent = 'Pick a set and enter a number.'; return; }
+    groupByNumberStatus.textContent = 'Looking up...';
+    try {
+      const res = await fetch('https://api.scryfall.com/cards/' + encodeURIComponent(set) + '/' + encodeURIComponent(number));
+      if (!res.ok) throw new Error('Card not found');
+      const data = await res.json();
+      pendingGroupCards.push({ set, number, name: data.name });
+      newGroupCardNumberInput.value = '';
+      groupByNumberStatus.textContent = 'Added: ' + data.name;
+      setTimeout(() => { groupByNumberStatus.textContent = ''; }, 2000);
+      renderPendingGroupListUI();
+    } catch (e) {
+      groupByNumberStatus.textContent = 'Not found. Check the set and number.';
     }
+  });
+  newGroupCardNumberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addToGroupByNumberBtn.click(); });
 
-    groupCardsRow.innerHTML = '';
-    const rowSizes = splitIntoRows(entry.cards.length);
-    const slots = [];
-    rowSizes.forEach(size => {
-      const rowEl = document.createElement('div');
-      rowEl.className = 'groupCardsRowLine';
-      for (let k = 0; k < size; k++) {
-        const wrap = document.createElement('div');
-        const img = document.createElement('img');
-        img.className = 'groupCardImg';
-        const loading = document.createElement('div');
-        loading.className = 'groupCardLoading';
-        loading.style.display = 'none';
-        wrap.appendChild(img);
-        wrap.appendChild(loading);
-        rowEl.appendChild(wrap);
-        slots.push({ img, loading });
-      }
-      groupCardsRow.appendChild(rowEl);
+  // Bulk paste — into the pending group
+  const bulkGroupCardNumbers = document.getElementById('bulkGroupCardNumbers');
+  const addBulkGroupCardsBtn = document.getElementById('addBulkGroupCardsBtn');
+  const bulkGroupCardStatus = document.getElementById('bulkGroupCardStatus');
+  addBulkGroupCardsBtn.addEventListener('click', async () => {
+    const set = groupSetSelect.value;
+    if (!set || !bulkGroupCardNumbers.value.trim()) { bulkGroupCardStatus.textContent = 'Pick a set and paste some numbers.'; return; }
+    addBulkGroupCardsBtn.disabled = true;
+    const { entries, failed } = await fetchCardsBulk(set, bulkGroupCardNumbers.value, bulkGroupCardStatus);
+    pendingGroupCards.push(...entries);
+    renderPendingGroupListUI();
+    bulkGroupCardStatus.textContent = 'Added ' + entries.length + ' card(s) to group.' + (failed.length ? ' Not found: ' + failed.join(', ') : '');
+    if (entries.length) bulkGroupCardNumbers.value = '';
+    addBulkGroupCardsBtn.disabled = false;
+  });
+
+  saveGroupBtn.addEventListener('click', () => {
+    if (!pendingGroupCards.length) return;
+    const header = newGroupHeaderInput.value.trim();
+    const groupEntry = { header, cards: pendingGroupCards.slice() };
+    if (editingGroupIndex !== null) {
+      const updated = CARD_LIST.slice();
+      updated[editingGroupIndex] = groupEntry;
+      cardsRef.set(updated);
+    } else {
+      cardsRef.set(CARD_LIST.concat([groupEntry]));
+    }
+    pendingGroupCards = [];
+    editingGroupIndex = null;
+    newGroupHeaderInput.value = '';
+    saveGroupBtn.textContent = 'Save group';
+    document.getElementById('groupEditingNotice').style.display = 'none';
+    renderPendingGroupListUI();
+  });
+
+  clearGroupBtn.addEventListener('click', () => {
+    pendingGroupCards = [];
+    editingGroupIndex = null;
+    newGroupHeaderInput.value = '';
+    saveGroupBtn.textContent = 'Save group';
+    document.getElementById('groupEditingNotice').style.display = 'none';
+    renderPendingGroupListUI();
+  });
+
+  // ===== Topic header list =====
+  const headersRef = db.ref(ROOT + '/headers');
+  const headerStateRef = db.ref(ROOT + '/headerState');
+  let HEADER_LIST = [];
+  let headerState = { index: 0, visible: false };
+  const headerListUI = document.getElementById('headerListUI');
+  const newHeaderInput = document.getElementById('newHeaderInput');
+
+  function renderHeaderListUI() {
+    headerListUI.innerHTML = '';
+    HEADER_LIST.forEach((text, i) => {
+      const row = document.createElement('div');
+      row.className = 'listItem' + (headerState.visible && headerState.index === i ? ' current' : '');
+      const label = document.createElement('span');
+      label.textContent = text;
+      const showBtn = document.createElement('button');
+      showBtn.className = 'small';
+      showBtn.textContent = 'Show';
+      showBtn.addEventListener('click', () => headerStateRef.set({ index: i, visible: true }));
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        const updated = HEADER_LIST.slice();
+        updated.splice(i, 1);
+        headersRef.set(updated);
+        if (headerState.index === i) headerStateRef.set({ index: 0, visible: false });
+        else if (headerState.index > i) headerStateRef.set({ index: headerState.index - 1, visible: headerState.visible });
+      });
+      row.appendChild(label);
+      row.appendChild(showBtn);
+      row.appendChild(delBtn);
+      headerListUI.appendChild(row);
     });
+  }
+  document.getElementById('addHeaderBtn').addEventListener('click', () => {
+    const text = newHeaderInput.value.trim();
+    if (!text) return;
+    headersRef.set(HEADER_LIST.concat([text]));
+    newHeaderInput.value = '';
+  });
+  newHeaderInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('addHeaderBtn').click(); });
+  document.getElementById('hideHeaderBtn').addEventListener('click', () => {
+    headerStateRef.set({ index: headerState.index, visible: false });
+  });
+  headersRef.on('value', (snap) => { HEADER_LIST = snap.val() || []; renderHeaderListUI(); });
+  headerStateRef.on('value', (snap) => {
+    headerState = Object.assign({ index: 0, visible: false }, snap.val() || {});
+    renderHeaderListUI();
+  });
 
-    showContent();
+  // ===== Secondary card slot editor =====
+  // Always-visible list, independent of the main Cards/Slides/Images/Pairs mode —
+  // every card added here shows at once (usually just one).
+  const secondaryCardsRef = db.ref(ROOT + '/secondaryCards');
+  let SECONDARY_CARD_LIST = [];
+  const secondaryCardListUI = document.getElementById('secondaryCardListUI');
+  const newSecondaryCardInput = document.getElementById('newSecondaryCardInput');
+  const addSecondaryCardBtn = document.getElementById('addSecondaryCardBtn');
+  const newSecondaryCardNumberInput = document.getElementById('newSecondaryCardNumberInput');
+  const addSecondaryCardByNumberBtn = document.getElementById('addSecondaryCardByNumberBtn');
+  const secondaryCardByNumberStatus = document.getElementById('secondaryCardByNumberStatus');
 
-    await Promise.all(entry.cards.map(async (cardEntry, i) => {
-      const { img, loading } = slots[i];
-      if (!cardEntry || (typeof cardEntry === 'object' && !cardEntry.name && !(cardEntry.set && cardEntry.number))) {
-        img.style.display = 'none';
-        loading.textContent = 'Empty or invalid card entry in this group';
-        loading.style.display = 'block';
+  function renderSecondaryCardListUI() {
+    secondaryCardListUI.innerHTML = '';
+    SECONDARY_CARD_LIST.forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.className = 'listItem';
+      row.draggable = true;
+
+      const handle = document.createElement('span');
+      handle.textContent = '\u2630';
+      handle.style.flex = '0';
+      handle.style.marginRight = '8px';
+      handle.style.color = '#666';
+
+      const label = document.createElement('span');
+      label.textContent = cardLabel(entry);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        const updated = SECONDARY_CARD_LIST.slice();
+        updated.splice(i, 1);
+        secondaryCardsRef.set(updated);
+      });
+
+      row.appendChild(handle);
+      row.appendChild(label);
+      row.appendChild(delBtn);
+
+      let dragFrom = null;
+      row.addEventListener('dragstart', () => { dragFrom = i; row.classList.add('dragging'); });
+      row.addEventListener('dragend', () => { row.classList.remove('dragging'); });
+      row.addEventListener('dragover', (e) => e.preventDefault());
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (dragFrom === null || dragFrom === i) return;
+        const updated = SECONDARY_CARD_LIST.slice();
+        const [moved] = updated.splice(dragFrom, 1);
+        updated.splice(i, 0, moved);
+        secondaryCardsRef.set(updated);
+      });
+
+      secondaryCardListUI.appendChild(row);
+    });
+  }
+
+  addSecondaryCardBtn.addEventListener('click', () => {
+    const name = newSecondaryCardInput.value.trim();
+    if (!name) return;
+    secondaryCardsRef.set(SECONDARY_CARD_LIST.concat([name]));
+    newSecondaryCardInput.value = '';
+  });
+  newSecondaryCardInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addSecondaryCardBtn.click(); });
+
+  addSecondaryCardByNumberBtn.addEventListener('click', async () => {
+    const set = secondarySetSelect.value;
+    const number = newSecondaryCardNumberInput.value.trim();
+    if (!set || !number) { secondaryCardByNumberStatus.textContent = 'Pick a set and enter a number.'; return; }
+    secondaryCardByNumberStatus.textContent = 'Looking up...';
+    try {
+      const res = await fetch('https://api.scryfall.com/cards/' + encodeURIComponent(set) + '/' + encodeURIComponent(number));
+      if (!res.ok) throw new Error('Card not found');
+      const data = await res.json();
+      secondaryCardsRef.set(SECONDARY_CARD_LIST.concat([{ set, number, name: data.name }]));
+      newSecondaryCardNumberInput.value = '';
+      secondaryCardByNumberStatus.textContent = 'Added: ' + data.name;
+      setTimeout(() => { secondaryCardByNumberStatus.textContent = ''; }, 2500);
+    } catch (e) {
+      secondaryCardByNumberStatus.textContent = 'Not found. Check the set and number.';
+    }
+  });
+  newSecondaryCardNumberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addSecondaryCardByNumberBtn.click(); });
+
+  // Bulk paste — Secondary Card Slot
+  const bulkSecondaryCardNumbers = document.getElementById('bulkSecondaryCardNumbers');
+  const addBulkSecondaryCardsBtn = document.getElementById('addBulkSecondaryCardsBtn');
+  const bulkSecondaryCardStatus = document.getElementById('bulkSecondaryCardStatus');
+  addBulkSecondaryCardsBtn.addEventListener('click', async () => {
+    const set = secondarySetSelect.value;
+    if (!set || !bulkSecondaryCardNumbers.value.trim()) { bulkSecondaryCardStatus.textContent = 'Pick a set and paste some numbers.'; return; }
+    addBulkSecondaryCardsBtn.disabled = true;
+    const { entries, failed } = await fetchCardsBulk(set, bulkSecondaryCardNumbers.value, bulkSecondaryCardStatus);
+    if (entries.length) secondaryCardsRef.set(SECONDARY_CARD_LIST.concat(entries));
+    bulkSecondaryCardStatus.textContent = 'Added ' + entries.length + ' card(s).' + (failed.length ? ' Not found: ' + failed.join(', ') : '');
+    if (entries.length) bulkSecondaryCardNumbers.value = '';
+    addBulkSecondaryCardsBtn.disabled = false;
+  });
+
+  secondaryCardsRef.on('value', (snap) => {
+    SECONDARY_CARD_LIST = snap.val() || [];
+    renderSecondaryCardListUI();
+  });
+
+  // ===== Slide list editor =====
+  function renderSlideListUI() {
+    slideListUI.innerHTML = '';
+    SLIDES.forEach((entry, i) => {
+      const bullets = Array.isArray(entry) ? entry : (entry.bullets || []);
+      const header = Array.isArray(entry) ? '' : (entry.header || '');
+      const row = document.createElement('div');
+      row.className = 'listItem' + (mode === 'slides' && i === slideIndex ? ' current' : '');
+      row.innerHTML = '<span>' + (header ? '<strong>' + header + '</strong>: ' : '') + bullets.join(' · ') + '</span>';
+      const jumpBtn = document.createElement('button');
+      jumpBtn.className = 'small';
+      jumpBtn.textContent = 'Show';
+      jumpBtn.addEventListener('click', () => { mode = 'slides'; slideIndex = i; push(); });
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        const updated = SLIDES.slice();
+        updated.splice(i, 1);
+        slidesRef.set(updated);
+      });
+      row.appendChild(jumpBtn);
+      row.appendChild(delBtn);
+      slideListUI.appendChild(row);
+    });
+  }
+
+  addSlideBtn.addEventListener('click', () => {
+    const lines = newSlideInput.value.split('\n').map(s => s.trim()).filter(Boolean);
+    const header = newSlideHeaderInput.value.trim();
+    if (!lines.length && !header) return;
+    slidesRef.set(SLIDES.concat([{ header, bullets: lines }]));
+    newSlideInput.value = '';
+    newSlideHeaderInput.value = '';
+  });
+
+  // ===== Image uploader =====
+  function fileToCompressedDataURL(file, maxWidth = 900, quality = 0.82, keepPng = false) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Could not decode image'));
+        img.onload = () => {
+          const scale = Math.min(1, maxWidth / img.width);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          // Keep PNGs as PNGs (sharp text, transparency) unless that gets too large for the database.
+          if (keepPng && file.type === 'image/png') {
+            const png = canvas.toDataURL('image/png');
+            if (png.length <= 4000000) { resolve(png); return; }
+          }
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  addImageBtn.addEventListener('click', async () => {
+    const file = newImageInput.files[0];
+    if (!file) { imageUploadStatus.textContent = 'Choose a file first.'; return; }
+    imageUploadStatus.textContent = 'Processing...';
+    try {
+      // Full resolution (up to 2560px wide) so images stay sharp when scaled up.
+      const dataUrl = await fileToCompressedDataURL(file, 2560, 0.95, true);
+      const totalChars = IMAGES.reduce((n, im) => n + ((im && im.dataUrl) ? im.dataUrl.length : 0), 0) + dataUrl.length;
+      if (totalChars > 12000000) {
+        imageUploadStatus.textContent = 'Too much image data in the database already (' + (totalChars / 1000000).toFixed(1) + 'MB of ~12MB). Remove an image first, or use a smaller one.';
         return;
       }
-      try {
-        img.src = await fetchCardImage(cardEntry);
-      } catch (e) {
-        img.style.display = 'none';
-        loading.textContent = 'Card not found: ' + cardDisplayName(cardEntry);
-        loading.style.display = 'block';
-      }
-    }));
-  }
-
-  function renderSlide(index) {
-    const entry = SLIDES[index];
-    if (!entry) { hideContent(); return; }
-    setContentKind('slide');
-    const header = Array.isArray(entry) ? '' : (entry.header || '');
-    const lines = Array.isArray(entry) ? entry : (entry.bullets || []);
-
-    cardWrap.style.display = 'none';
-    bulletWrap.style.display = 'block';
-    imageWrap.style.display = 'none';
-    pairWrap.style.display = 'none';
-    groupWrap.style.display = 'none';
-
-    if (header) {
-      slideHeader.textContent = header;
-      slideHeader.style.display = 'block';
-    } else {
-      slideHeader.style.display = 'none';
+      const label = newImageLabel.value.trim();
+      imagesRef.set(IMAGES.concat([{ label, dataUrl }]));
+      newImageInput.value = '';
+      newImageLabel.value = '';
+      imageUploadStatus.textContent = 'Added.';
+      setTimeout(() => { imageUploadStatus.textContent = ''; }, 2000);
+    } catch (e) {
+      imageUploadStatus.textContent = 'Upload failed: ' + e.message;
     }
+  });
 
-    bulletList.innerHTML = '';
-    lines.forEach((line, i) => {
-      const li = document.createElement('li');
-      li.textContent = line;
-      bulletList.appendChild(li);
-      setTimeout(() => li.classList.add('shown'), 120 * i);
+  // ===== Background image =====
+  const backgroundRef = db.ref(ROOT + '/background');
+  const newBgInput = document.getElementById('newBgInput');
+  const setBgBtn = document.getElementById('setBgBtn');
+  const bgUploadStatus = document.getElementById('bgUploadStatus');
+  const bgEnabled = document.getElementById('bgEnabled');
+  const bgBlur = document.getElementById('bgBlur');
+  const bgBlurVal = document.getElementById('bgBlurVal');
+  const removeBgBtn = document.getElementById('removeBgBtn');
+
+  let backgroundState = { dataUrl: null, blur: 0, enabled: false };
+
+  setBgBtn.addEventListener('click', async () => {
+    const file = newBgInput.files[0];
+    if (!file) { bgUploadStatus.textContent = 'Choose a file first.'; return; }
+    bgUploadStatus.textContent = 'Processing...';
+    try {
+      // Full canvas width so it stays sharp even blurred
+      const dataUrl = await fileToCompressedDataURL(file, 1920, 0.85);
+      backgroundState.dataUrl = dataUrl;
+      backgroundState.enabled = true;
+      bgEnabled.checked = true;
+      backgroundRef.set(backgroundState);
+      newBgInput.value = '';
+      bgUploadStatus.textContent = 'Background set.';
+      setTimeout(() => { bgUploadStatus.textContent = ''; }, 2000);
+    } catch (e) {
+      bgUploadStatus.textContent = 'Upload failed: ' + e.message;
+    }
+  });
+
+  bgEnabled.addEventListener('change', () => {
+    backgroundState.enabled = bgEnabled.checked;
+    backgroundRef.set(backgroundState);
+  });
+
+  bgBlur.addEventListener('input', () => {
+    backgroundState.blur = +bgBlur.value;
+    bgBlurVal.textContent = bgBlur.value + 'px';
+    backgroundRef.set(backgroundState);
+  });
+
+  removeBgBtn.addEventListener('click', () => {
+    backgroundState = { dataUrl: null, blur: 0, enabled: false };
+    bgEnabled.checked = false;
+    bgBlur.value = 0;
+    bgBlurVal.textContent = '0px';
+    backgroundRef.set(backgroundState);
+  });
+
+  backgroundRef.on('value', (snap) => {
+    const saved = snap.val();
+    if (saved) {
+      backgroundState = saved;
+      bgEnabled.checked = !!saved.enabled;
+      bgBlur.value = saved.blur || 0;
+      bgBlurVal.textContent = (saved.blur || 0) + 'px';
+    }
+  });
+
+  function renderImageListUI() {
+    imageListUI.innerHTML = '';
+    IMAGES.forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.className = 'listItem' + (mode === 'images' && i === imageIndex ? ' current' : '');
+      row.innerHTML = '<span>' + (entry.label || 'Image ' + (i + 1)) + '</span>';
+      const jumpBtn = document.createElement('button');
+      jumpBtn.className = 'small';
+      jumpBtn.textContent = 'Show';
+      jumpBtn.addEventListener('click', () => { mode = 'images'; imageIndex = i; push(); });
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        const updated = IMAGES.slice();
+        updated.splice(i, 1);
+        imagesRef.set(updated);
+      });
+      row.appendChild(jumpBtn);
+      row.appendChild(delBtn);
+      imageListUI.appendChild(row);
     });
-    showContent();
   }
 
-  function renderImage(index) {
-    const entry = IMAGES[index];
-    if (!entry) { hideContent(); return; }
-    setContentKind('image');
-    cardWrap.style.display = 'none';
-    bulletWrap.style.display = 'none';
-    imageWrap.style.display = 'block';
-    pairWrap.style.display = 'none';
-    groupWrap.style.display = 'none';
-    customImg.src = entry.dataUrl;
-    showContent();
+  // ===== Card pairs editor =====
+  addPairBtn.addEventListener('click', () => {
+    const header = newPairHeaderInput.value.trim();
+    const card1 = newPairCard1Input.value.trim();
+    const card2 = newPairCard2Input.value.trim();
+    if (!card1 && !card2) return;
+    pairsRef.set(PAIRS.concat([{ header, card1, card2 }]));
+    newPairHeaderInput.value = '';
+    newPairCard1Input.value = '';
+    newPairCard2Input.value = '';
+  });
+
+  function renderPairListUI() {
+    pairListUI.innerHTML = '';
+    PAIRS.forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.className = 'listItem' + (mode === 'pairs' && i === pairIndex ? ' current' : '');
+      const label = (entry.header ? '<strong>' + entry.header + '</strong>: ' : '') +
+        [entry.card1, entry.card2].filter(Boolean).join(' + ');
+      row.innerHTML = '<span>' + label + '</span>';
+      const jumpBtn = document.createElement('button');
+      jumpBtn.className = 'small';
+      jumpBtn.textContent = 'Show';
+      jumpBtn.addEventListener('click', () => { mode = 'pairs'; pairIndex = i; push(); });
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        const updated = PAIRS.slice();
+        updated.splice(i, 1);
+        pairsRef.set(updated);
+      });
+      row.appendChild(jumpBtn);
+      row.appendChild(delBtn);
+      pairListUI.appendChild(row);
+    });
   }
 
-  async function renderPair(index) {
-    const entry = PAIRS[index];
-    if (!entry) { hideContent(); return; }
-    setContentKind('pair');
-    cardWrap.style.display = 'none';
-    bulletWrap.style.display = 'none';
-    imageWrap.style.display = 'none';
-    pairWrap.style.display = 'block';
-    groupWrap.style.display = 'none';
-
-    if (entry.header) {
-      pairHeader.textContent = entry.header;
-      pairHeader.style.display = 'block';
-    } else {
-      pairHeader.style.display = 'none';
-    }
-
-    showContent();
-
-    async function loadInto(imgEl, loadingEl, name) {
-      if (!name) { imgEl.style.display = 'none'; loadingEl.style.display = 'none'; return; }
-      imgEl.style.display = 'block';
-      loadingEl.style.display = 'none';
-      try {
-        imgEl.src = await fetchCardImage(name);
-      } catch (e) {
-        imgEl.style.display = 'none';
-        loadingEl.textContent = 'Card not found: ' + name;
-        loadingEl.style.display = 'block';
-      }
-    }
-
-    await Promise.all([
-      loadInto(pairImg1, pairLoading1, entry.card1),
-      loadInto(pairImg2, pairLoading2, entry.card2)
-    ]);
-  }
-
-  function renderCurrent() {
-    if (!currentState) return;
-    if (currentState.mode === 'cards') renderCard(currentState.cardIndex || 0);
-    else if (currentState.mode === 'slides') renderSlide(currentState.slideIndex || 0);
-    else if (currentState.mode === 'images') renderImage(currentState.imageIndex || 0);
-    else if (currentState.mode === 'pairs') renderPair(currentState.pairIndex || 0);
-    else if (currentState.mode === 'clear') hideContent();
-  }
-
-  db.ref(ROOT + '/cards').on('value', (snap) => {
+  cardsRef.on('value', (snap) => {
     CARD_LIST = snap.val() || [];
-    // Flatten group entries so nested cards get preloaded too, not just top-level ones.
-    const flat = [];
-    CARD_LIST.forEach(entry => {
-      if (isGroupEntry(entry)) flat.push(...entry.cards);
-      else flat.push(entry);
-    });
-    preloadNewCards(flat);
-    renderCurrent();
+    if (cardIndex >= CARD_LIST.length) cardIndex = 0;
+    renderCardListUI();
+    updatePreview();
   });
 
-  db.ref(ROOT + '/pairs').on('value', (snap) => {
-    PAIRS = snap.val() || [];
-    const names = [];
-    PAIRS.forEach(p => { if (p.card1) names.push(p.card1); if (p.card2) names.push(p.card2); });
-    preloadNewCards(names);
-    renderCurrent();
-  });
-
-  /* ============ Topic header ============ */
-  let HEADERS = [];
-  let headerState = { index: 0, visible: false };
-  function renderHeader() {
-    const text = HEADERS[headerState.index];
-    if (headerState.visible && text) {
-      headerInner.textContent = text;
-      headerInner.classList.add('visible');
-    } else {
-      headerInner.classList.remove('visible');
-    }
-  }
-  db.ref(ROOT + '/headers').on('value', (snap) => { HEADERS = snap.val() || []; renderHeader(); });
-  db.ref(ROOT + '/headerState').on('value', (snap) => {
-    headerState = Object.assign({ index: 0, visible: false }, snap.val() || {});
-    renderHeader();
-  });
-
-  /* ============ Secondary card slot — always-on, shows every card in the list ============ */
-  async function renderSecondary() {
-    if (!SECONDARY_CARDS.length) {
-      secondaryInner.classList.remove('visible');
-      return;
-    }
-    secondaryInner.innerHTML = '';
-    const slots = SECONDARY_CARDS.map(() => {
-      const wrap = document.createElement('div');
-      const img = document.createElement('img');
-      img.className = 'secondaryCardImg';
-      const loading = document.createElement('div');
-      loading.className = 'secondaryCardLoading';
-      loading.style.display = 'none';
-      wrap.appendChild(img);
-      wrap.appendChild(loading);
-      secondaryInner.appendChild(wrap);
-      return { img, loading };
-    });
-    secondaryInner.classList.add('visible');
-
-    await Promise.all(SECONDARY_CARDS.map(async (entry, i) => {
-      const { img, loading } = slots[i];
-      try {
-        img.src = await fetchCardImage(entry);
-      } catch (e) {
-        img.style.display = 'none';
-        loading.textContent = 'Card not found: ' + cardDisplayName(entry);
-        loading.style.display = 'block';
-      }
-    }));
-  }
-
-  db.ref(ROOT + '/secondaryCards').on('value', (snap) => {
-    SECONDARY_CARDS = snap.val() || [];
-    preloadNewCards(SECONDARY_CARDS);
-    renderSecondary();
-  });
-
-  db.ref(ROOT + '/slides').on('value', (snap) => {
+  slidesRef.on('value', (snap) => {
     SLIDES = snap.val() || [];
-    renderCurrent();
+    if (slideIndex >= SLIDES.length) slideIndex = 0;
+    renderSlideListUI();
+    updatePreview();
   });
-  db.ref(ROOT + '/images').on('value', (snap) => {
+
+  imagesRef.on('value', (snap) => {
     IMAGES = snap.val() || [];
-    renderCurrent();
+    if (imageIndex >= IMAGES.length) imageIndex = 0;
+    renderImageListUI();
+    updatePreview();
   });
-  db.ref(ROOT + '/style').on('value', (snap) => {
+
+  pairsRef.on('value', (snap) => {
+    PAIRS = snap.val() || [];
+    if (pairIndex >= PAIRS.length) pairIndex = 0;
+    renderPairListUI();
+    updatePreview();
+  });
+
+  // ===== Slide text style =====
+  applyStyleBtn.addEventListener('click', () => {
+    styleRef.set({
+      textColor: styleTextColor.value,
+      accentColor: styleAccentColor.value,
+      fontFamily: styleFontFamily.value,
+      bold: styleBold.checked
+    });
+  });
+  styleRef.on('value', (snap) => {
     const style = snap.val() || {};
-    const root = document.documentElement.style;
-    root.setProperty('--slide-text-color', style.textColor || '#ffffff');
-    root.setProperty('--slide-accent-color', style.accentColor || '#f4c04a');
-    root.setProperty('--slide-font-family', style.fontFamily || "'Segoe UI', Arial, sans-serif");
-    root.setProperty('--slide-font-weight', style.bold ? '700' : '400');
+    styleTextColor.value = style.textColor || '#ffffff';
+    styleAccentColor.value = style.accentColor || '#f4c04a';
+    styleFontFamily.value = style.fontFamily || "'Segoe UI', Arial, sans-serif";
+    styleBold.checked = !!style.bold;
   });
 
-  /* ============ Background image ============ */
-  const bgLayer = document.getElementById('bgLayer');
-  const bgImage = document.getElementById('bgImage');
-  db.ref(ROOT + '/background').on('value', (snap) => {
-    const bg = snap.val();
-    if (bg && bg.enabled && bg.dataUrl) {
-      bgImage.src = bg.dataUrl;
-      document.documentElement.style.setProperty('--bg-blur', (bg.blur || 0) + 'px');
-      bgLayer.style.display = 'block';
-    } else {
-      bgLayer.style.display = 'none';
-    }
-  });
-
-  db.ref(ROOT + '/state').on('value', (snap) => {
-    currentState = snap.val();
-    renderCurrent();
-  });
-
-  /* ============ Layout (position / size / style for everything) ============ */
+  // ===== Layout controls =====
   const DEFAULT_LAYOUT = {
     content: { centerX: 650, centerY: 540, scale: 1, scaleCard: 1, scaleGroupOf2: 1, scaleGroupOf34: 1, scaleGroupOf56: 1, scaleGroupOf7: 1, groupHeaderColor: '#f4c04a', groupHeaderBgEnabled: false, groupHeaderBgColor: '#0a0c14', groupHeaderBgOpacity: 0.85, scalePair: 1, scaleImage: 1, scaleSlide: 1, slideBgEnabled: false, slideBgColor: '#0a0c14', slideBgOpacity: 0.85, imageBgEnabled: false, imageBgColor: '#0a0c14', imageBgOpacity: 0.85, cornerRadius: 20 },
     secondary: { centerX: 300, centerY: 950, scale: 0.6, gap: 16, enabled: false, bgEnabled: false, bgColor: '#0a0c14', bgOpacity: 0.85, cornerRadius: 16 },
@@ -646,95 +1525,475 @@
     cam2: { centerX: 1670, centerY: 700, width: 500, height: 320, name: 'Host 2', nameplateEnabled: true, nameplateOffsetX: 0, nameplateOffsetY: 14, nameplateFontSize: 16, nameplateTextColor: '#ffffff', nameplateBgEnabled: true, nameplateBgColor: '#0a0c14', nameplateBgOpacity: 0.82, cornerRadius: 18, enabled: false, borderColor: '#f4c04a', borderWidth: 4 }
   };
 
-  const cam1Box = document.getElementById('cam1Box');
-  const cam2Box = document.getElementById('cam2Box');
-  const cam1Name = document.getElementById('cam1Name');
-  const cam2Name = document.getElementById('cam2Name');
+  let layout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+  let layoutWriteTimer = null;
 
-  function applyLayout(layout) {
-    const c = Object.assign({}, DEFAULT_LAYOUT.content, layout.content);
-    const s = Object.assign({}, DEFAULT_LAYOUT.secondary, layout.secondary);
-    const h = Object.assign({}, DEFAULT_LAYOUT.header, layout.header);
-    const c1 = Object.assign({}, DEFAULT_LAYOUT.cam1, layout.cam1);
-    const c2 = Object.assign({}, DEFAULT_LAYOUT.cam2, layout.cam2);
-
-    contentZone.style.left = c.centerX + 'px';
-    contentZone.style.top = c.centerY + 'px';
-    contentLayoutCache = c;
-    updateContentTransform();
-    groupHeader.style.color = c.groupHeaderColor;
-    groupHeader.style.background = c.groupHeaderBgEnabled ? hexToRgba(c.groupHeaderBgColor, c.groupHeaderBgOpacity) : 'transparent';
-    contentInner.style.borderRadius = c.cornerRadius + 'px';
-
-    secondaryZone.style.left = s.centerX + 'px';
-    secondaryZone.style.top = s.centerY + 'px';
-    secondaryZone.style.transform = 'translate(-50%, -50%) scale(' + s.scale + ')';
-    headerZone.style.left = h.centerX + 'px';
-    headerZone.style.top = h.centerY + 'px';
-    headerZone.style.transform = 'translate(-50%, -50%) scale(' + h.scale + ')';
-    headerInner.style.fontSize = h.fontSize + 'px';
-    headerInner.style.color = h.textColor;
-    headerInner.style.borderRadius = h.cornerRadius + 'px';
-    headerInner.style.background = h.bgEnabled ? hexToRgba(h.bgColor, h.bgOpacity) : 'transparent';
-
-    secondaryZone.style.display = s.enabled ? 'block' : 'none';
-    secondaryInner.style.borderRadius = s.cornerRadius + 'px';
-    secondaryInner.style.gap = s.gap + 'px';
-    if (s.bgEnabled) {
-      const hex = s.bgColor.replace('#', '');
-      const r = parseInt(hex.substring(0,2), 16);
-      const g = parseInt(hex.substring(2,4), 16);
-      const b = parseInt(hex.substring(4,6), 16);
-      secondaryInner.style.background = 'rgba(' + r + ',' + g + ',' + b + ',' + s.bgOpacity + ')';
-    } else {
-      secondaryInner.style.background = 'transparent';
-    }
-
-    cam1Box.style.left = c1.centerX + 'px';
-    cam1Box.style.top = c1.centerY + 'px';
-    cam1Box.style.width = c1.width + 'px';
-    cam1Box.style.height = c1.height + 'px';
-    cam1Box.style.borderRadius = c1.cornerRadius + 'px';
-    cam1Box.style.border = c1.borderWidth + 'px solid ' + c1.borderColor;
-    cam1Box.style.display = c1.enabled ? 'block' : 'none';
-    applyNameplate(cam1Name, c1);
-
-    cam2Box.style.left = c2.centerX + 'px';
-    cam2Box.style.top = c2.centerY + 'px';
-    cam2Box.style.width = c2.width + 'px';
-    cam2Box.style.height = c2.height + 'px';
-    cam2Box.style.borderRadius = c2.cornerRadius + 'px';
-    cam2Box.style.border = c2.borderWidth + 'px solid ' + c2.borderColor;
-    cam2Box.style.display = c2.enabled ? 'block' : 'none';
-    applyNameplate(cam2Name, c2);
+  function pushLayout() {
+    clearTimeout(layoutWriteTimer);
+    layoutWriteTimer = setTimeout(() => layoutRef.set(layout), 120);
   }
 
-  function hexToRgba(hex, alpha) {
-    const h = (hex || '#000000').replace('#', '');
-    const r = parseInt(h.substring(0, 2), 16);
-    const g = parseInt(h.substring(2, 4), 16);
-    const b = parseInt(h.substring(4, 6), 16);
-    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+  const els = {
+    contentX: document.getElementById('contentX'), contentXVal: document.getElementById('contentXVal'),
+    contentY: document.getElementById('contentY'), contentYVal: document.getElementById('contentYVal'),
+    contentScale: document.getElementById('contentScale'), contentScaleVal: document.getElementById('contentScaleVal'),
+    contentScaleCard: document.getElementById('contentScaleCard'), contentScaleCardVal: document.getElementById('contentScaleCardVal'),
+    contentScaleGroupOf2: document.getElementById('contentScaleGroupOf2'), contentScaleGroupOf2Val: document.getElementById('contentScaleGroupOf2Val'),
+    contentScaleGroupOf34: document.getElementById('contentScaleGroupOf34'), contentScaleGroupOf34Val: document.getElementById('contentScaleGroupOf34Val'),
+    contentScaleGroupOf56: document.getElementById('contentScaleGroupOf56'), contentScaleGroupOf56Val: document.getElementById('contentScaleGroupOf56Val'),
+    contentScaleGroupOf7: document.getElementById('contentScaleGroupOf7'), contentScaleGroupOf7Val: document.getElementById('contentScaleGroupOf7Val'),
+    groupHeaderColor: document.getElementById('groupHeaderColor'),
+    groupHeaderBgEnabled: document.getElementById('groupHeaderBgEnabled'),
+    groupHeaderBgColor: document.getElementById('groupHeaderBgColor'),
+    groupHeaderBgOpacity: document.getElementById('groupHeaderBgOpacity'), groupHeaderBgOpacityVal: document.getElementById('groupHeaderBgOpacityVal'),
+    contentScalePair: document.getElementById('contentScalePair'), contentScalePairVal: document.getElementById('contentScalePairVal'),
+    contentScaleImage: document.getElementById('contentScaleImage'), contentScaleImageVal: document.getElementById('contentScaleImageVal'),
+    contentScaleSlide: document.getElementById('contentScaleSlide'), contentScaleSlideVal: document.getElementById('contentScaleSlideVal'),
+    contentSlideBgEnabled: document.getElementById('contentSlideBgEnabled'),
+    contentSlideBgColor: document.getElementById('contentSlideBgColor'),
+    contentSlideBgOpacity: document.getElementById('contentSlideBgOpacity'), contentSlideBgOpacityVal: document.getElementById('contentSlideBgOpacityVal'),
+    contentImageBgEnabled: document.getElementById('contentImageBgEnabled'),
+    contentImageBgColor: document.getElementById('contentImageBgColor'),
+    contentImageBgOpacity: document.getElementById('contentImageBgOpacity'), contentImageBgOpacityVal: document.getElementById('contentImageBgOpacityVal'),
+    contentRadius: document.getElementById('contentRadius'), contentRadiusVal: document.getElementById('contentRadiusVal'),
+
+    headerX: document.getElementById('headerX'), headerXVal: document.getElementById('headerXVal'),
+    headerY: document.getElementById('headerY'), headerYVal: document.getElementById('headerYVal'),
+    headerScale: document.getElementById('headerScale'), headerScaleVal: document.getElementById('headerScaleVal'),
+    headerFontSize: document.getElementById('headerFontSize'), headerFontSizeVal: document.getElementById('headerFontSizeVal'),
+    headerTextColor: document.getElementById('headerTextColor'),
+    headerBgEnabled: document.getElementById('headerBgEnabled'),
+    headerBgColor: document.getElementById('headerBgColor'),
+    headerBgOpacity: document.getElementById('headerBgOpacity'), headerBgOpacityVal: document.getElementById('headerBgOpacityVal'),
+    headerRadius: document.getElementById('headerRadius'), headerRadiusVal: document.getElementById('headerRadiusVal'),
+
+    secondaryX: document.getElementById('secondaryX'), secondaryXVal: document.getElementById('secondaryXVal'),
+    secondaryY: document.getElementById('secondaryY'), secondaryYVal: document.getElementById('secondaryYVal'),
+    secondaryScale: document.getElementById('secondaryScale'), secondaryScaleVal: document.getElementById('secondaryScaleVal'),
+    secondaryGap: document.getElementById('secondaryGap'), secondaryGapVal: document.getElementById('secondaryGapVal'),
+    secondaryEnabled: document.getElementById('secondaryEnabled'),
+    secondaryBgEnabled: document.getElementById('secondaryBgEnabled'),
+    secondaryBgColor: document.getElementById('secondaryBgColor'),
+    secondaryBgOpacity: document.getElementById('secondaryBgOpacity'), secondaryBgOpacityVal: document.getElementById('secondaryBgOpacityVal'),
+    secondaryRadius: document.getElementById('secondaryRadius'), secondaryRadiusVal: document.getElementById('secondaryRadiusVal'),
+
+    cam1X: document.getElementById('cam1X'), cam1XVal: document.getElementById('cam1XVal'),
+    cam1Y: document.getElementById('cam1Y'), cam1YVal: document.getElementById('cam1YVal'),
+    cam1W: document.getElementById('cam1W'), cam1WVal: document.getElementById('cam1WVal'),
+    cam1H: document.getElementById('cam1H'), cam1HVal: document.getElementById('cam1HVal'),
+    cam1R: document.getElementById('cam1R'), cam1RVal: document.getElementById('cam1RVal'),
+    cam1NameInput: document.getElementById('cam1NameInput'),
+    cam1NameplateEnabled: document.getElementById('cam1NameplateEnabled'),
+    cam1Enabled: document.getElementById('cam1Enabled'),
+    cam1BorderColor: document.getElementById('cam1BorderColor'),
+    cam1BorderWidth: document.getElementById('cam1BorderWidth'), cam1BorderWidthVal: document.getElementById('cam1BorderWidthVal'),
+    cam1NameOffsetX: document.getElementById('cam1NameOffsetX'), cam1NameOffsetXVal: document.getElementById('cam1NameOffsetXVal'),
+    cam1NameOffset: document.getElementById('cam1NameOffset'), cam1NameOffsetVal: document.getElementById('cam1NameOffsetVal'),
+    cam1NameFontSize: document.getElementById('cam1NameFontSize'), cam1NameFontSizeVal: document.getElementById('cam1NameFontSizeVal'),
+    cam1NameTextColor: document.getElementById('cam1NameTextColor'),
+    cam1NameBgEnabled: document.getElementById('cam1NameBgEnabled'),
+    cam1NameBgColor: document.getElementById('cam1NameBgColor'),
+    cam1NameBgOpacity: document.getElementById('cam1NameBgOpacity'), cam1NameBgOpacityVal: document.getElementById('cam1NameBgOpacityVal'),
+
+    cam2X: document.getElementById('cam2X'), cam2XVal: document.getElementById('cam2XVal'),
+    cam2Y: document.getElementById('cam2Y'), cam2YVal: document.getElementById('cam2YVal'),
+    cam2W: document.getElementById('cam2W'), cam2WVal: document.getElementById('cam2WVal'),
+    cam2H: document.getElementById('cam2H'), cam2HVal: document.getElementById('cam2HVal'),
+    cam2R: document.getElementById('cam2R'), cam2RVal: document.getElementById('cam2RVal'),
+    cam2NameInput: document.getElementById('cam2NameInput'),
+    cam2NameplateEnabled: document.getElementById('cam2NameplateEnabled'),
+    cam2Enabled: document.getElementById('cam2Enabled'),
+    cam2BorderColor: document.getElementById('cam2BorderColor'),
+    cam2BorderWidth: document.getElementById('cam2BorderWidth'), cam2BorderWidthVal: document.getElementById('cam2BorderWidthVal'),
+    cam2NameOffsetX: document.getElementById('cam2NameOffsetX'), cam2NameOffsetXVal: document.getElementById('cam2NameOffsetXVal'),
+    cam2NameOffset: document.getElementById('cam2NameOffset'), cam2NameOffsetVal: document.getElementById('cam2NameOffsetVal'),
+    cam2NameFontSize: document.getElementById('cam2NameFontSize'), cam2NameFontSizeVal: document.getElementById('cam2NameFontSizeVal'),
+    cam2NameTextColor: document.getElementById('cam2NameTextColor'),
+    cam2NameBgEnabled: document.getElementById('cam2NameBgEnabled'),
+    cam2NameBgColor: document.getElementById('cam2NameBgColor'),
+    cam2NameBgOpacity: document.getElementById('cam2NameBgOpacity'), cam2NameBgOpacityVal: document.getElementById('cam2NameBgOpacityVal')
+  };
+
+  function reflectLayoutToControls() {
+    const c = layout.content, s = layout.secondary, c1 = layout.cam1, c2 = layout.cam2, h = layout.header;
+    els.contentX.value = c.centerX; els.contentXVal.textContent = c.centerX;
+    els.contentY.value = c.centerY; els.contentYVal.textContent = c.centerY;
+    els.contentScale.value = Math.round(c.scale * 100); els.contentScaleVal.textContent = Math.round(c.scale * 100) + '%';
+    els.contentScaleCard.value = Math.round(c.scaleCard * 100); els.contentScaleCardVal.textContent = Math.round(c.scaleCard * 100) + '%';
+    els.contentScaleGroupOf2.value = Math.round(c.scaleGroupOf2 * 100); els.contentScaleGroupOf2Val.textContent = Math.round(c.scaleGroupOf2 * 100) + '%';
+    els.contentScaleGroupOf34.value = Math.round(c.scaleGroupOf34 * 100); els.contentScaleGroupOf34Val.textContent = Math.round(c.scaleGroupOf34 * 100) + '%';
+    els.contentScaleGroupOf56.value = Math.round(c.scaleGroupOf56 * 100); els.contentScaleGroupOf56Val.textContent = Math.round(c.scaleGroupOf56 * 100) + '%';
+    els.contentScaleGroupOf7.value = Math.round(c.scaleGroupOf7 * 100); els.contentScaleGroupOf7Val.textContent = Math.round(c.scaleGroupOf7 * 100) + '%';
+    els.groupHeaderColor.value = c.groupHeaderColor;
+    els.groupHeaderBgEnabled.checked = c.groupHeaderBgEnabled;
+    els.groupHeaderBgColor.value = c.groupHeaderBgColor;
+    els.groupHeaderBgOpacity.value = Math.round(c.groupHeaderBgOpacity * 100); els.groupHeaderBgOpacityVal.textContent = Math.round(c.groupHeaderBgOpacity * 100) + '%';
+    els.contentScalePair.value = Math.round(c.scalePair * 100); els.contentScalePairVal.textContent = Math.round(c.scalePair * 100) + '%';
+    els.contentScaleImage.value = Math.round(c.scaleImage * 100); els.contentScaleImageVal.textContent = Math.round(c.scaleImage * 100) + '%';
+    els.contentScaleSlide.value = Math.round(c.scaleSlide * 100); els.contentScaleSlideVal.textContent = Math.round(c.scaleSlide * 100) + '%';
+    els.contentSlideBgEnabled.checked = c.slideBgEnabled;
+    els.contentSlideBgColor.value = c.slideBgColor;
+    els.contentSlideBgOpacity.value = Math.round(c.slideBgOpacity * 100); els.contentSlideBgOpacityVal.textContent = Math.round(c.slideBgOpacity * 100) + '%';
+    els.contentImageBgEnabled.checked = c.imageBgEnabled;
+    els.contentImageBgColor.value = c.imageBgColor;
+    els.contentImageBgOpacity.value = Math.round(c.imageBgOpacity * 100); els.contentImageBgOpacityVal.textContent = Math.round(c.imageBgOpacity * 100) + '%';
+    els.contentRadius.value = c.cornerRadius; els.contentRadiusVal.textContent = c.cornerRadius + 'px';
+
+    els.headerX.value = h.centerX; els.headerXVal.textContent = h.centerX;
+    els.headerY.value = h.centerY; els.headerYVal.textContent = h.centerY;
+    els.headerScale.value = Math.round(h.scale * 100); els.headerScaleVal.textContent = Math.round(h.scale * 100) + '%';
+    els.headerFontSize.value = h.fontSize; els.headerFontSizeVal.textContent = h.fontSize + 'px';
+    els.headerTextColor.value = h.textColor;
+    els.headerBgEnabled.checked = h.bgEnabled;
+    els.headerBgColor.value = h.bgColor;
+    els.headerBgOpacity.value = Math.round(h.bgOpacity * 100); els.headerBgOpacityVal.textContent = Math.round(h.bgOpacity * 100) + '%';
+    els.headerRadius.value = h.cornerRadius; els.headerRadiusVal.textContent = h.cornerRadius + 'px';
+
+    els.secondaryX.value = s.centerX; els.secondaryXVal.textContent = s.centerX;
+    els.secondaryY.value = s.centerY; els.secondaryYVal.textContent = s.centerY;
+    els.secondaryScale.value = Math.round(s.scale * 100); els.secondaryScaleVal.textContent = Math.round(s.scale * 100) + '%';
+    els.secondaryGap.value = s.gap; els.secondaryGapVal.textContent = s.gap + 'px';
+    els.secondaryEnabled.checked = !!s.enabled;
+    els.secondaryBgEnabled.checked = s.bgEnabled;
+    els.secondaryBgColor.value = s.bgColor;
+    els.secondaryBgOpacity.value = Math.round(s.bgOpacity * 100); els.secondaryBgOpacityVal.textContent = Math.round(s.bgOpacity * 100) + '%';
+    els.secondaryRadius.value = s.cornerRadius; els.secondaryRadiusVal.textContent = s.cornerRadius + 'px';
+
+    els.cam1X.value = c1.centerX; els.cam1XVal.textContent = c1.centerX;
+    els.cam1Y.value = c1.centerY; els.cam1YVal.textContent = c1.centerY;
+    els.cam1W.value = c1.width; els.cam1WVal.textContent = c1.width;
+    els.cam1H.value = c1.height; els.cam1HVal.textContent = c1.height;
+    els.cam1R.value = c1.cornerRadius; els.cam1RVal.textContent = c1.cornerRadius + 'px';
+    els.cam1NameInput.value = c1.name;
+    els.cam1NameplateEnabled.checked = c1.nameplateEnabled;
+    els.cam1Enabled.checked = !!c1.enabled;
+    els.cam1BorderColor.value = c1.borderColor;
+    els.cam1BorderWidth.value = c1.borderWidth; els.cam1BorderWidthVal.textContent = c1.borderWidth + 'px';
+    els.cam1NameOffsetX.value = c1.nameplateOffsetX; els.cam1NameOffsetXVal.textContent = c1.nameplateOffsetX + 'px';
+    els.cam1NameOffset.value = c1.nameplateOffsetY; els.cam1NameOffsetVal.textContent = c1.nameplateOffsetY + 'px';
+    els.cam1NameFontSize.value = c1.nameplateFontSize; els.cam1NameFontSizeVal.textContent = c1.nameplateFontSize + 'px';
+    els.cam1NameTextColor.value = c1.nameplateTextColor;
+    els.cam1NameBgEnabled.checked = c1.nameplateBgEnabled;
+    els.cam1NameBgColor.value = c1.nameplateBgColor;
+    els.cam1NameBgOpacity.value = Math.round(c1.nameplateBgOpacity * 100); els.cam1NameBgOpacityVal.textContent = Math.round(c1.nameplateBgOpacity * 100) + '%';
+
+    els.cam2X.value = c2.centerX; els.cam2XVal.textContent = c2.centerX;
+    els.cam2Y.value = c2.centerY; els.cam2YVal.textContent = c2.centerY;
+    els.cam2W.value = c2.width; els.cam2WVal.textContent = c2.width;
+    els.cam2H.value = c2.height; els.cam2HVal.textContent = c2.height;
+    els.cam2R.value = c2.cornerRadius; els.cam2RVal.textContent = c2.cornerRadius + 'px';
+    els.cam2NameInput.value = c2.name;
+    els.cam2NameplateEnabled.checked = c2.nameplateEnabled;
+    els.cam2Enabled.checked = !!c2.enabled;
+    els.cam2BorderColor.value = c2.borderColor;
+    els.cam2BorderWidth.value = c2.borderWidth; els.cam2BorderWidthVal.textContent = c2.borderWidth + 'px';
+    els.cam2NameOffsetX.value = c2.nameplateOffsetX; els.cam2NameOffsetXVal.textContent = c2.nameplateOffsetX + 'px';
+    els.cam2NameOffset.value = c2.nameplateOffsetY; els.cam2NameOffsetVal.textContent = c2.nameplateOffsetY + 'px';
+    els.cam2NameFontSize.value = c2.nameplateFontSize; els.cam2NameFontSizeVal.textContent = c2.nameplateFontSize + 'px';
+    els.cam2NameTextColor.value = c2.nameplateTextColor;
+    els.cam2NameBgEnabled.checked = c2.nameplateBgEnabled;
+    els.cam2NameBgColor.value = c2.nameplateBgColor;
+    els.cam2NameBgOpacity.value = Math.round(c2.nameplateBgOpacity * 100); els.cam2NameBgOpacityVal.textContent = Math.round(c2.nameplateBgOpacity * 100) + '%';
   }
 
-  // Nameplate sits below the webcam border frame, centered under it,
-  // with its own adjustable offset, text size/color, and background.
-  function applyNameplate(nameEl, c) {
-    nameEl.style.display = (c.enabled && c.nameplateEnabled) ? 'block' : 'none';
-    nameEl.textContent = c.name;
-    nameEl.style.left = (c.centerX + (c.nameplateOffsetX || 0)) + 'px';
-    nameEl.style.top = (c.centerY + c.height / 2 + (c.nameplateOffsetY || 0)) + 'px';
-    nameEl.style.fontSize = (c.nameplateFontSize || 16) + 'px';
-    nameEl.style.color = c.nameplateTextColor || '#ffffff';
-    nameEl.style.background = c.nameplateBgEnabled
-      ? hexToRgba(c.nameplateBgColor || '#0a0c14', c.nameplateBgOpacity != null ? c.nameplateBgOpacity : 0.82)
-      : 'transparent';
-  }
-
-  applyLayout({});
-  db.ref(ROOT + '/layout').on('value', (snap) => {
-    applyLayout(snap.val() || {});
+  els.contentX.addEventListener('input', () => { layout.content.centerX = +els.contentX.value; els.contentXVal.textContent = layout.content.centerX; pushLayout(); });
+  els.contentY.addEventListener('input', () => { layout.content.centerY = +els.contentY.value; els.contentYVal.textContent = layout.content.centerY; pushLayout(); });
+  els.contentScale.addEventListener('input', () => { layout.content.scale = (+els.contentScale.value) / 100; els.contentScaleVal.textContent = els.contentScale.value + '%'; pushLayout(); });
+  els.contentScaleCard.addEventListener('input', () => { layout.content.scaleCard = (+els.contentScaleCard.value) / 100; els.contentScaleCardVal.textContent = els.contentScaleCard.value + '%'; pushLayout(); });
+  els.contentScaleGroupOf2.addEventListener('input', () => { layout.content.scaleGroupOf2 = (+els.contentScaleGroupOf2.value) / 100; els.contentScaleGroupOf2Val.textContent = els.contentScaleGroupOf2.value + '%'; pushLayout(); });
+  els.contentScaleGroupOf34.addEventListener('input', () => { layout.content.scaleGroupOf34 = (+els.contentScaleGroupOf34.value) / 100; els.contentScaleGroupOf34Val.textContent = els.contentScaleGroupOf34.value + '%'; pushLayout(); });
+  els.contentScaleGroupOf56.addEventListener('input', () => { layout.content.scaleGroupOf56 = (+els.contentScaleGroupOf56.value) / 100; els.contentScaleGroupOf56Val.textContent = els.contentScaleGroupOf56.value + '%'; pushLayout(); });
+  els.contentScaleGroupOf7.addEventListener('input', () => { layout.content.scaleGroupOf7 = (+els.contentScaleGroupOf7.value) / 100; els.contentScaleGroupOf7Val.textContent = els.contentScaleGroupOf7.value + '%'; pushLayout(); });
+  els.groupHeaderColor.addEventListener('input', () => { layout.content.groupHeaderColor = els.groupHeaderColor.value; pushLayout(); });
+  els.groupHeaderBgEnabled.addEventListener('change', () => { layout.content.groupHeaderBgEnabled = els.groupHeaderBgEnabled.checked; pushLayout(); });
+  els.groupHeaderBgColor.addEventListener('input', () => { layout.content.groupHeaderBgColor = els.groupHeaderBgColor.value; pushLayout(); });
+  els.groupHeaderBgOpacity.addEventListener('input', () => { layout.content.groupHeaderBgOpacity = (+els.groupHeaderBgOpacity.value) / 100; els.groupHeaderBgOpacityVal.textContent = els.groupHeaderBgOpacity.value + '%'; pushLayout(); });
+  els.contentScalePair.addEventListener('input', () => { layout.content.scalePair = (+els.contentScalePair.value) / 100; els.contentScalePairVal.textContent = els.contentScalePair.value + '%'; pushLayout(); });
+  els.contentScaleImage.addEventListener('input', () => { layout.content.scaleImage = (+els.contentScaleImage.value) / 100; els.contentScaleImageVal.textContent = els.contentScaleImage.value + '%'; pushLayout(); });
+  els.contentScaleSlide.addEventListener('input', () => { layout.content.scaleSlide = (+els.contentScaleSlide.value) / 100; els.contentScaleSlideVal.textContent = els.contentScaleSlide.value + '%'; pushLayout(); });
+  els.contentSlideBgEnabled.addEventListener('change', () => { layout.content.slideBgEnabled = els.contentSlideBgEnabled.checked; pushLayout(); });
+  els.contentSlideBgColor.addEventListener('input', () => { layout.content.slideBgColor = els.contentSlideBgColor.value; pushLayout(); });
+  els.contentSlideBgOpacity.addEventListener('input', () => { layout.content.slideBgOpacity = (+els.contentSlideBgOpacity.value) / 100; els.contentSlideBgOpacityVal.textContent = els.contentSlideBgOpacity.value + '%'; pushLayout(); });
+  els.contentImageBgEnabled.addEventListener('change', () => { layout.content.imageBgEnabled = els.contentImageBgEnabled.checked; pushLayout(); });
+  els.contentImageBgColor.addEventListener('input', () => { layout.content.imageBgColor = els.contentImageBgColor.value; pushLayout(); });
+  els.contentImageBgOpacity.addEventListener('input', () => { layout.content.imageBgOpacity = (+els.contentImageBgOpacity.value) / 100; els.contentImageBgOpacityVal.textContent = els.contentImageBgOpacity.value + '%'; pushLayout(); });
+  els.contentRadius.addEventListener('input', () => { layout.content.cornerRadius = +els.contentRadius.value; els.contentRadiusVal.textContent = els.contentRadius.value + 'px'; pushLayout(); });
+  document.getElementById('resetContentBtn').addEventListener('click', () => {
+    layout.content = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.content));
+    reflectLayoutToControls();
+    pushLayout();
   });
+
+  els.headerX.addEventListener('input', () => { layout.header.centerX = +els.headerX.value; els.headerXVal.textContent = els.headerX.value; pushLayout(); });
+  els.headerY.addEventListener('input', () => { layout.header.centerY = +els.headerY.value; els.headerYVal.textContent = els.headerY.value; pushLayout(); });
+  els.headerScale.addEventListener('input', () => { layout.header.scale = (+els.headerScale.value) / 100; els.headerScaleVal.textContent = els.headerScale.value + '%'; pushLayout(); });
+  els.headerFontSize.addEventListener('input', () => { layout.header.fontSize = +els.headerFontSize.value; els.headerFontSizeVal.textContent = els.headerFontSize.value + 'px'; pushLayout(); });
+  els.headerTextColor.addEventListener('input', () => { layout.header.textColor = els.headerTextColor.value; pushLayout(); });
+  els.headerBgEnabled.addEventListener('change', () => { layout.header.bgEnabled = els.headerBgEnabled.checked; pushLayout(); });
+  els.headerBgColor.addEventListener('input', () => { layout.header.bgColor = els.headerBgColor.value; pushLayout(); });
+  els.headerBgOpacity.addEventListener('input', () => { layout.header.bgOpacity = (+els.headerBgOpacity.value) / 100; els.headerBgOpacityVal.textContent = els.headerBgOpacity.value + '%'; pushLayout(); });
+  els.headerRadius.addEventListener('input', () => { layout.header.cornerRadius = +els.headerRadius.value; els.headerRadiusVal.textContent = els.headerRadius.value + 'px'; pushLayout(); });
+  document.getElementById('resetHeaderBtn').addEventListener('click', () => {
+    layout.header = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.header));
+    reflectLayoutToControls();
+    pushLayout();
+  });
+
+  els.secondaryX.addEventListener('input', () => { layout.secondary.centerX = +els.secondaryX.value; els.secondaryXVal.textContent = layout.secondary.centerX; pushLayout(); });
+  els.secondaryY.addEventListener('input', () => { layout.secondary.centerY = +els.secondaryY.value; els.secondaryYVal.textContent = layout.secondary.centerY; pushLayout(); });
+  els.secondaryScale.addEventListener('input', () => { layout.secondary.scale = (+els.secondaryScale.value) / 100; els.secondaryScaleVal.textContent = els.secondaryScale.value + '%'; pushLayout(); });
+  els.secondaryGap.addEventListener('input', () => { layout.secondary.gap = +els.secondaryGap.value; els.secondaryGapVal.textContent = els.secondaryGap.value + 'px'; pushLayout(); });
+  els.secondaryEnabled.addEventListener('change', () => { layout.secondary.enabled = els.secondaryEnabled.checked; pushLayout(); });
+  els.secondaryBgEnabled.addEventListener('change', () => { layout.secondary.bgEnabled = els.secondaryBgEnabled.checked; pushLayout(); });
+  els.secondaryBgColor.addEventListener('input', () => { layout.secondary.bgColor = els.secondaryBgColor.value; pushLayout(); });
+  els.secondaryBgOpacity.addEventListener('input', () => { layout.secondary.bgOpacity = (+els.secondaryBgOpacity.value) / 100; els.secondaryBgOpacityVal.textContent = els.secondaryBgOpacity.value + '%'; pushLayout(); });
+  els.secondaryRadius.addEventListener('input', () => { layout.secondary.cornerRadius = +els.secondaryRadius.value; els.secondaryRadiusVal.textContent = els.secondaryRadius.value + 'px'; pushLayout(); });
+  document.getElementById('resetSecondaryBtn').addEventListener('click', () => {
+    layout.secondary = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.secondary));
+    reflectLayoutToControls();
+    pushLayout();
+  });
+
+  els.cam1X.addEventListener('input', () => { layout.cam1.centerX = +els.cam1X.value; els.cam1XVal.textContent = layout.cam1.centerX; pushLayout(); });
+  els.cam1Y.addEventListener('input', () => { layout.cam1.centerY = +els.cam1Y.value; els.cam1YVal.textContent = layout.cam1.centerY; pushLayout(); });
+  els.cam1W.addEventListener('input', () => { layout.cam1.width = +els.cam1W.value; els.cam1WVal.textContent = layout.cam1.width; pushLayout(); });
+  els.cam1H.addEventListener('input', () => { layout.cam1.height = +els.cam1H.value; els.cam1HVal.textContent = layout.cam1.height; pushLayout(); });
+  els.cam1R.addEventListener('input', () => { layout.cam1.cornerRadius = +els.cam1R.value; els.cam1RVal.textContent = els.cam1R.value + 'px'; pushLayout(); });
+  els.cam1NameInput.addEventListener('input', () => { layout.cam1.name = els.cam1NameInput.value; pushLayout(); });
+  els.cam1NameplateEnabled.addEventListener('change', () => { layout.cam1.nameplateEnabled = els.cam1NameplateEnabled.checked; pushLayout(); });
+  els.cam1Enabled.addEventListener('change', () => { layout.cam1.enabled = els.cam1Enabled.checked; pushLayout(); });
+  els.cam1BorderColor.addEventListener('input', () => { layout.cam1.borderColor = els.cam1BorderColor.value; pushLayout(); });
+  els.cam1BorderWidth.addEventListener('input', () => { layout.cam1.borderWidth = +els.cam1BorderWidth.value; els.cam1BorderWidthVal.textContent = els.cam1BorderWidth.value + 'px'; pushLayout(); });
+  els.cam1NameOffsetX.addEventListener('input', () => { layout.cam1.nameplateOffsetX = +els.cam1NameOffsetX.value; els.cam1NameOffsetXVal.textContent = els.cam1NameOffsetX.value + 'px'; pushLayout(); });
+  els.cam1NameOffset.addEventListener('input', () => { layout.cam1.nameplateOffsetY = +els.cam1NameOffset.value; els.cam1NameOffsetVal.textContent = els.cam1NameOffset.value + 'px'; pushLayout(); });
+  els.cam1NameFontSize.addEventListener('input', () => { layout.cam1.nameplateFontSize = +els.cam1NameFontSize.value; els.cam1NameFontSizeVal.textContent = els.cam1NameFontSize.value + 'px'; pushLayout(); });
+  els.cam1NameTextColor.addEventListener('input', () => { layout.cam1.nameplateTextColor = els.cam1NameTextColor.value; pushLayout(); });
+  els.cam1NameBgEnabled.addEventListener('change', () => { layout.cam1.nameplateBgEnabled = els.cam1NameBgEnabled.checked; pushLayout(); });
+  els.cam1NameBgColor.addEventListener('input', () => { layout.cam1.nameplateBgColor = els.cam1NameBgColor.value; pushLayout(); });
+  els.cam1NameBgOpacity.addEventListener('input', () => { layout.cam1.nameplateBgOpacity = (+els.cam1NameBgOpacity.value) / 100; els.cam1NameBgOpacityVal.textContent = els.cam1NameBgOpacity.value + '%'; pushLayout(); });
+  document.getElementById('resetCam1Btn').addEventListener('click', () => {
+    layout.cam1 = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.cam1));
+    reflectLayoutToControls();
+    pushLayout();
+  });
+
+  els.cam2X.addEventListener('input', () => { layout.cam2.centerX = +els.cam2X.value; els.cam2XVal.textContent = layout.cam2.centerX; pushLayout(); });
+  els.cam2Y.addEventListener('input', () => { layout.cam2.centerY = +els.cam2Y.value; els.cam2YVal.textContent = layout.cam2.centerY; pushLayout(); });
+  els.cam2W.addEventListener('input', () => { layout.cam2.width = +els.cam2W.value; els.cam2WVal.textContent = layout.cam2.width; pushLayout(); });
+  els.cam2H.addEventListener('input', () => { layout.cam2.height = +els.cam2H.value; els.cam2HVal.textContent = layout.cam2.height; pushLayout(); });
+  els.cam2R.addEventListener('input', () => { layout.cam2.cornerRadius = +els.cam2R.value; els.cam2RVal.textContent = els.cam2R.value + 'px'; pushLayout(); });
+  els.cam2NameInput.addEventListener('input', () => { layout.cam2.name = els.cam2NameInput.value; pushLayout(); });
+  els.cam2NameplateEnabled.addEventListener('change', () => { layout.cam2.nameplateEnabled = els.cam2NameplateEnabled.checked; pushLayout(); });
+  els.cam2Enabled.addEventListener('change', () => { layout.cam2.enabled = els.cam2Enabled.checked; pushLayout(); });
+  els.cam2BorderColor.addEventListener('input', () => { layout.cam2.borderColor = els.cam2BorderColor.value; pushLayout(); });
+  els.cam2BorderWidth.addEventListener('input', () => { layout.cam2.borderWidth = +els.cam2BorderWidth.value; els.cam2BorderWidthVal.textContent = els.cam2BorderWidth.value + 'px'; pushLayout(); });
+  els.cam2NameOffsetX.addEventListener('input', () => { layout.cam2.nameplateOffsetX = +els.cam2NameOffsetX.value; els.cam2NameOffsetXVal.textContent = els.cam2NameOffsetX.value + 'px'; pushLayout(); });
+  els.cam2NameOffset.addEventListener('input', () => { layout.cam2.nameplateOffsetY = +els.cam2NameOffset.value; els.cam2NameOffsetVal.textContent = els.cam2NameOffset.value + 'px'; pushLayout(); });
+  els.cam2NameFontSize.addEventListener('input', () => { layout.cam2.nameplateFontSize = +els.cam2NameFontSize.value; els.cam2NameFontSizeVal.textContent = els.cam2NameFontSize.value + 'px'; pushLayout(); });
+  els.cam2NameTextColor.addEventListener('input', () => { layout.cam2.nameplateTextColor = els.cam2NameTextColor.value; pushLayout(); });
+  els.cam2NameBgEnabled.addEventListener('change', () => { layout.cam2.nameplateBgEnabled = els.cam2NameBgEnabled.checked; pushLayout(); });
+  els.cam2NameBgColor.addEventListener('input', () => { layout.cam2.nameplateBgColor = els.cam2NameBgColor.value; pushLayout(); });
+  els.cam2NameBgOpacity.addEventListener('input', () => { layout.cam2.nameplateBgOpacity = (+els.cam2NameBgOpacity.value) / 100; els.cam2NameBgOpacityVal.textContent = els.cam2NameBgOpacity.value + '%'; pushLayout(); });
+  document.getElementById('resetCam2Btn').addEventListener('click', () => {
+    layout.cam2 = JSON.parse(JSON.stringify(DEFAULT_LAYOUT.cam2));
+    reflectLayoutToControls();
+    pushLayout();
+  });
+
+  // Load whatever's currently saved (or defaults) once, then reflect it in the sliders.
+  // Uses .once so this page doesn't fight with your own slider drags on every remote update.
+  function loadLayoutOnce() {
+    layoutRef.once('value', (snap) => {
+      const saved = snap.val();
+      if (saved) {
+        layout.content = Object.assign({}, DEFAULT_LAYOUT.content, saved.content);
+        layout.secondary = Object.assign({}, DEFAULT_LAYOUT.secondary, saved.secondary);
+        layout.header = Object.assign({}, DEFAULT_LAYOUT.header, saved.header);
+        layout.cam1 = Object.assign({}, DEFAULT_LAYOUT.cam1, saved.cam1);
+        layout.cam2 = Object.assign({}, DEFAULT_LAYOUT.cam2, saved.cam2);
+      } else {
+        layout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+      }
+      reflectLayoutToControls();
+    });
+  }
+  loadLayoutOnce();
+
+  // ===== Overlay 1 / 2 switcher =====
+  (function () {
+    const b1 = document.getElementById('pickOverlay1');
+    const b2 = document.getElementById('pickOverlay2');
+    const label = document.getElementById('overlayChoiceLabel');
+    const on = 'background:#f4c04a; color:#1a1300; font-weight:bold;';
+    (overlayChoice === '2' ? b2 : b1).setAttribute('style', on);
+    label.textContent = 'Now editing: Overlay ' + overlayChoice + ' (' + (overlayChoice === '2' ? 'overlay2.html' : 'overlay.html') + ')';
+    function pick(n) {
+      if (n === overlayChoice) return;
+      try { localStorage.setItem('controlOverlay', n); } catch (e) {}
+      const url = new URL(location.href);
+      url.searchParams.set('overlay', n);
+      location.href = url.toString();   // reload so every listener points at the other overlay's data
+    }
+    b1.addEventListener('click', () => pick('1'));
+    b2.addEventListener('click', () => pick('2'));
+  })();
+
+  // ===== Profiles (full snapshots of the overlay data) =====
+  const overlayRef = db.ref(ROOT);
+  const profilesRef = db.ref('profiles');
+  const activeProfileRef = db.ref(ROOT === 'overlay' ? 'activeProfile' : 'activeProfile2');
+  let PROFILES = {};
+  let activeProfileKey = null;
+  const profileSelect = document.getElementById('profileSelect');
+  const activeProfileLabel = document.getElementById('activeProfileLabel');
+  const profileStatus = document.getElementById('profileStatus');
+  const newProfileName = document.getElementById('newProfileName');
+
+  function profileKeyFor(name) { return name.trim().replace(/[.$#\[\]\/]/g, '-'); }
+  function profileMsg(text) {
+    profileStatus.textContent = text;
+    setTimeout(() => { if (profileStatus.textContent === text) profileStatus.textContent = ''; }, 4000);
+  }
+
+  function renderProfileUI() {
+    const keys = Object.keys(PROFILES).sort((a, b) => (PROFILES[a].name || a).localeCompare(PROFILES[b].name || b));
+    const prevSelected = profileSelect.value;
+    profileSelect.innerHTML = '';
+    if (!keys.length) {
+      profileSelect.innerHTML = '<option value="">(no saved profiles)</option>';
+    }
+    keys.forEach((k) => {
+      const opt = document.createElement('option');
+      opt.value = k;
+      opt.textContent = (PROFILES[k].name || k) + (k === activeProfileKey ? '  (loaded)' : '');
+      profileSelect.appendChild(opt);
+    });
+    profileSelect.value = (prevSelected && PROFILES[prevSelected]) ? prevSelected : (activeProfileKey && PROFILES[activeProfileKey] ? activeProfileKey : (keys[0] || ''));
+    activeProfileLabel.textContent = activeProfileKey && PROFILES[activeProfileKey]
+      ? 'Loaded profile: ' + (PROFILES[activeProfileKey].name || activeProfileKey)
+      : 'No profile loaded';
+  }
+
+  profilesRef.on('value', (snap) => { PROFILES = snap.val() || {}; renderProfileUI(); });
+  activeProfileRef.on('value', (snap) => { activeProfileKey = snap.val() || null; renderProfileUI(); });
+
+  // After the overlay data is replaced, bring this page's local sliders/indices back in line.
+  function resyncLocalFromDb() {
+    clearTimeout(layoutWriteTimer);
+    loadLayoutOnce();
+    stateRef.once('value', (snap) => {
+      const st = snap.val();
+      if (st) {
+        if (st.mode && st.mode !== 'clear') mode = st.mode;
+        cardIndex = st.cardIndex || 0;
+        slideIndex = st.slideIndex || 0;
+        imageIndex = st.imageIndex || 0;
+        pairIndex = st.pairIndex || 0;
+      }
+      updatePreview();
+    });
+  }
+
+  async function saveProfileSnapshot(name, key) {
+    clearTimeout(layoutWriteTimer);
+    await layoutRef.set(layout);          // make sure the latest slider values are included
+    const snap = await overlayRef.once('value');
+    await profilesRef.child(key).set({ name: name, savedAt: Date.now(), data: snap.val() || {} });
+  }
+
+  document.getElementById('saveAsProfileBtn').addEventListener('click', async () => {
+    const name = newProfileName.value.trim();
+    const key = profileKeyFor(name);
+    if (!key) { profileMsg('Enter a profile name first.'); return; }
+    if (PROFILES[key] && !confirm('A profile named "' + name + '" already exists. Overwrite it?')) return;
+    try {
+      await saveProfileSnapshot(name, key);
+      await activeProfileRef.set(key);
+      newProfileName.value = '';
+      profileMsg('Saved "' + name + '".');
+    } catch (e) { profileMsg('Save failed: ' + e.message); }
+  });
+
+  document.getElementById('updateProfileBtn').addEventListener('click', async () => {
+    const key = profileSelect.value;
+    if (!key || !PROFILES[key]) { profileMsg('Pick a profile first.'); return; }
+    const name = PROFILES[key].name || key;
+    if (!confirm('Overwrite saved profile "' + name + '" with what is on screen right now?')) return;
+    try {
+      await saveProfileSnapshot(name, key);
+      await activeProfileRef.set(key);
+      profileMsg('Updated "' + name + '".');
+    } catch (e) { profileMsg('Save failed: ' + e.message); }
+  });
+
+  document.getElementById('loadProfileBtn').addEventListener('click', async () => {
+    const key = profileSelect.value;
+    if (!key || !PROFILES[key]) { profileMsg('Pick a profile first.'); return; }
+    const name = PROFILES[key].name || key;
+    if (!confirm('Load "' + name + '"? This replaces everything currently in the overlay. Anything you have not saved to a profile will be lost.')) return;
+    try {
+      clearTimeout(layoutWriteTimer);
+      const snap = await profilesRef.child(key).once('value');
+      const p = snap.val();
+      const data = p && p.data && Object.keys(p.data).length ? p.data : null;
+      await overlayRef.set(data);
+      await activeProfileRef.set(key);
+      resyncLocalFromDb();
+      profileMsg('Loaded "' + name + '".');
+    } catch (e) { profileMsg('Load failed: ' + e.message); }
+  });
+
+  document.getElementById('deleteProfileBtn').addEventListener('click', async () => {
+    const key = profileSelect.value;
+    if (!key || !PROFILES[key]) { profileMsg('Pick a profile first.'); return; }
+    const name = PROFILES[key].name || key;
+    if (!confirm('Permanently delete saved profile "' + name + '"? (The overlay on screen is not changed.)')) return;
+    try {
+      await profilesRef.child(key).remove();
+      if (activeProfileKey === key) await activeProfileRef.set(null);
+      profileMsg('Deleted "' + name + '".');
+    } catch (e) { profileMsg('Delete failed: ' + e.message); }
+  });
+
+  document.getElementById('blankProfileBtn').addEventListener('click', async () => {
+    const name = newProfileName.value.trim();
+    const key = profileKeyFor(name);
+    if (!key) { profileMsg('Enter a name for the new profile first.'); return; }
+    if (PROFILES[key] && !confirm('A profile named "' + name + '" already exists. Replace it with a blank one?')) return;
+    if (!confirm('Start a blank profile "' + name + '"? This clears everything currently in the overlay. Save the current setup to a profile first if you want to keep it.')) return;
+    try {
+      clearTimeout(layoutWriteTimer);
+      const keep = document.getElementById('blankKeepLayout').checked;
+      const snap = await overlayRef.once('value');
+      const cur = snap.val() || {};
+      const fresh = {};
+      if (keep) {
+        if (cur.layout) fresh.layout = cur.layout;
+        if (cur.style) fresh.style = cur.style;
+      }
+      await overlayRef.set(Object.keys(fresh).length ? fresh : null);
+      await profilesRef.child(key).set({ name: name, savedAt: Date.now(), data: fresh });
+      await activeProfileRef.set(key);
+      newProfileName.value = '';
+      resyncLocalFromDb();
+      profileMsg('Created blank profile "' + name + '".');
+    } catch (e) { profileMsg('Failed: ' + e.message); }
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    const tag = document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.key === 'ArrowRight') btnNext.click();
+    else if (e.key === 'ArrowLeft') btnPrev.click();
+    else if (e.key === '1') btnCards.click();
+    else if (e.key === '2') btnSlides.click();
+    else if (e.key === '3') btnImages.click();
+    else if (e.key === '4') btnPairs.click();
+    else if (e.key === 'Escape') btnHide.click();
+  });
+
+  updatePreview();
 </script>
 
 </body>
