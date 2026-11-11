@@ -231,6 +231,8 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
+  // Which database branch this page reads. overlay.html uses 'overlay'; overlay2.html uses 'overlay2'.
+  const ROOT = 'overlay';
 
   /* ============ Content zone (cards / slides / images) ============ */
   const contentZone = document.getElementById('contentZone');
@@ -522,7 +524,7 @@
     else if (currentState.mode === 'clear') hideContent();
   }
 
-  db.ref('overlay/cards').on('value', (snap) => {
+  db.ref(ROOT + '/cards').on('value', (snap) => {
     CARD_LIST = snap.val() || [];
     // Flatten group entries so nested cards get preloaded too, not just top-level ones.
     const flat = [];
@@ -534,7 +536,7 @@
     renderCurrent();
   });
 
-  db.ref('overlay/pairs').on('value', (snap) => {
+  db.ref(ROOT + '/pairs').on('value', (snap) => {
     PAIRS = snap.val() || [];
     const names = [];
     PAIRS.forEach(p => { if (p.card1) names.push(p.card1); if (p.card2) names.push(p.card2); });
@@ -554,8 +556,8 @@
       headerInner.classList.remove('visible');
     }
   }
-  db.ref('overlay/headers').on('value', (snap) => { HEADERS = snap.val() || []; renderHeader(); });
-  db.ref('overlay/headerState').on('value', (snap) => {
+  db.ref(ROOT + '/headers').on('value', (snap) => { HEADERS = snap.val() || []; renderHeader(); });
+  db.ref(ROOT + '/headerState').on('value', (snap) => {
     headerState = Object.assign({ index: 0, visible: false }, snap.val() || {});
     renderHeader();
   });
@@ -593,21 +595,21 @@
     }));
   }
 
-  db.ref('overlay/secondaryCards').on('value', (snap) => {
+  db.ref(ROOT + '/secondaryCards').on('value', (snap) => {
     SECONDARY_CARDS = snap.val() || [];
     preloadNewCards(SECONDARY_CARDS);
     renderSecondary();
   });
 
-  db.ref('overlay/slides').on('value', (snap) => {
+  db.ref(ROOT + '/slides').on('value', (snap) => {
     SLIDES = snap.val() || [];
     renderCurrent();
   });
-  db.ref('overlay/images').on('value', (snap) => {
+  db.ref(ROOT + '/images').on('value', (snap) => {
     IMAGES = snap.val() || [];
     renderCurrent();
   });
-  db.ref('overlay/style').on('value', (snap) => {
+  db.ref(ROOT + '/style').on('value', (snap) => {
     const style = snap.val() || {};
     const root = document.documentElement.style;
     root.setProperty('--slide-text-color', style.textColor || '#ffffff');
@@ -619,7 +621,7 @@
   /* ============ Background image ============ */
   const bgLayer = document.getElementById('bgLayer');
   const bgImage = document.getElementById('bgImage');
-  db.ref('overlay/background').on('value', (snap) => {
+  db.ref(ROOT + '/background').on('value', (snap) => {
     const bg = snap.val();
     if (bg && bg.enabled && bg.dataUrl) {
       bgImage.src = bg.dataUrl;
@@ -630,7 +632,7 @@
     }
   });
 
-  db.ref('overlay/state').on('value', (snap) => {
+  db.ref(ROOT + '/state').on('value', (snap) => {
     currentState = snap.val();
     renderCurrent();
   });
@@ -730,7 +732,7 @@
   }
 
   applyLayout({});
-  db.ref('overlay/layout').on('value', (snap) => {
+  db.ref(ROOT + '/layout').on('value', (snap) => {
     applyLayout(snap.val() || {});
   });
 </script>
